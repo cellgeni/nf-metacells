@@ -1,0 +1,1 @@
+Nextflow pipeline to run a banch of metacell agregation tools
