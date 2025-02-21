@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import pickle
 import logging
 import argparse
 from typing import Optional
@@ -146,8 +147,8 @@ def process_atac(adata: sc.AnnData, n_components: int = 50) -> sc.AnnData:
     # compute TF-IDF
     muon.atac.pp.tfidf(adata, scale_factor=1e4)
 
-    # compute LCI
-    muon.atac.tl.lci(adata, n_pcs=n_components)
+    # compute LSI
+    muon.atac.tl.lsi(adata, n_comps=n_components)
     logging.info("Completed ATAC data preprocessing")
     return adata
 
@@ -230,7 +231,7 @@ def plot_assignments(model: SEACells.core.SEACells, output_dir: str):
     """
     logging.info("Plotting assignments")
     # create plots
-    (ax1, ax2), fig = plt.subplots(1, 2, figsize=(15, 10))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 15), gridspec_kw={"hspace": 0.3})
 
     # non-trivial assignments
     sns.displot((model.A_.T > 0.1).sum(axis=1), kde=False, ax=ax1)
@@ -263,7 +264,9 @@ def plot_metacell_stats(
     """
     logging.info("Plotting metacell stats")
     # create plots
-    ((ax1, ax2), (ax3, ax4)), fig = plt.subplots(2, 2, figsize=(15, 10))
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(
+        2, 2, figsize=(10, 15), gridspec_kw={"hspace": 0.3}
+    )
 
     # metacell sizes
     label_df = adata.obs[["SEACell"]].reset_index()
@@ -272,12 +275,12 @@ def plot_metacell_stats(
     ax1.set_xlabel("# Cells per Metacell")
 
     # compactness
-    compactness = SEACells.evaluate.compute_compactness(adata, components_key)
+    compactness = SEACells.evaluate.compactness(adata, components_key)
     sns.boxplot(data=compactness, y="compactness", ax=ax2)
     ax2.set_title("Compactness")
 
     # separation
-    separation = SEACells.evaluate.compute_separation(adata, components_key, nth_nbr=1)
+    separation = SEACells.evaluate.separation(adata, components_key, nth_nbr=1)
     sns.boxplot(data=separation, y="separation", ax=ax3)
     ax3.set_title("Separation")
 
@@ -346,7 +349,7 @@ def main():
         components_key = "X_pca"
     elif args.type == "atac":
         adata_processed = process_atac(adata, args.n_components)
-        components_key = "X_svd"
+        components_key = "X_lsi"
     else:
         raise ValueError("Invalid data type")
 
@@ -382,8 +385,9 @@ def main():
     adata_processed.write_h5ad(os.path.join(args.output_dir, "metacells.h5ad"))
     hard_labels.to_csv(os.path.join(args.output_dir, "metacell_assignments.csv"))
     soft_labels.to_csv(os.path.join(args.output_dir, "soft_assignments.csv"))
-    weights.to_csv(os.path.join(args.output_dir, "weights.csv"))
-    model.save(os.path.join(args.output_dir, "model.pkl"))
+    np.save(os.path.join(args.output_dir, "weights.npy"), weights)
+    with open(os.path.join(args.output_dir, "model.pkl"), "wb") as file:
+        pickle.dump(model, file)
     logging.info("Successfully saved results")
 
 
