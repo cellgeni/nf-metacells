@@ -13,7 +13,7 @@ process SEACellsAggregate {
         val(min_iterations)
         val(max_iterations)
     output:
-        path("*.h5ad")
+        path("${item}")
     script:
         """
         seacells_aggregate.py \

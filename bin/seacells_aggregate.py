@@ -3,6 +3,7 @@
 import os
 import logging
 import argparse
+from typing import Optional
 import muon
 import SEACells
 import numpy as np
@@ -167,7 +168,7 @@ def process_atac(adata: sc.AnnData, n_components: int = 50) -> sc.AnnData:
 
 
 def get_metacell_number(
-    adata: sc.AnnData, n_metacells: int | None, gamma: int | None
+    adata: sc.AnnData, n_metacells: Optional[int], gamma: Optional[int]
 ) -> int:
     """
     Calculate number of metacells
@@ -265,7 +266,7 @@ def plot_metacell_stats(
     adata: sc.AnnData,
     output_dir: str,
     components_key: str,
-    celltype_label: str | None = None,
+    celltype_label: Optional[str] = None,
 ):
     """
     Plot metacells
@@ -313,7 +314,7 @@ def evaluate_results(
     model: SEACells.core.SEACells,
     output_dir: str,
     components_key: str,
-    celltype_label: str | None = None,
+    celltype_label: Optional[str] = None,
 ):
     """
     Evaluate results
@@ -355,15 +356,14 @@ def main():
 
     # preprocess data
     logging.info("Preprocessing data of type: %s", args.type)
-    match args.type:
-        case "gex":
-            adata_processed = process_gex(adata, args.n_top_genes, args.n_components)
-            components_key = "X_pca"
-        case "atac":
-            adata_processed = process_atac(adata, args.n_components)
-            components_key = "X_svd"
-        case _:
-            raise ValueError("Invalid data type")
+    if args.type == "gex":
+        adata_processed = process_gex(adata, args.n_top_genes, args.n_components)
+        components_key = "X_pca"
+    elif args.type == "atac":
+        adata_processed = process_atac(adata, args.n_components)
+        components_key = "X_svd"
+    else:
+        raise ValueError("Invalid data type")
 
     # get number of metacells
     n_metacells = get_metacell_number(adata_processed, args.n_metacells, args.gamma)
@@ -400,3 +400,7 @@ def main():
     weights.to_csv(os.path.join(args.output_dir, "weights.csv"))
     model.save(os.path.join(args.output_dir, "model.pkl"))
     logging.info("Successfully saved results")
+
+
+if __name__ == "__main__":
+    main()
