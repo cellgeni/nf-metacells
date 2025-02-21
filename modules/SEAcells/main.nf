@@ -16,6 +16,7 @@ process SEACellsAggregate {
         path("${item}")
     script:
         """
+        mkdir -p ${item}
         seacells_aggregate.py \
             --adata ${adata} \
             ${n_cells ? "--n_metacells ${n_cells}" : ""} \
