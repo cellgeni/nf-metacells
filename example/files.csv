@@ -1,0 +1,3 @@
+item,filepath
+pbmc_10k,/lustre/scratch127/cellgen/cellgeni/aljes/nf-metacells/pbmc/results/pbmc_10k/pbmc10k/pbmc10k.h5ad
+pbmc_3k,/lustre/scratch127/cellgen/cellgeni/aljes/nf-metacells/pbmc/results/pbmc3k/pbmc3k/pbmc3k.h5ad
