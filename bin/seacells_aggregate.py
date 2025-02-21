@@ -17,18 +17,6 @@ logging.basicConfig(
 )
 
 
-class NoneAction(argparse.Action):
-    """
-    Custom action to handle None values
-    """
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        if values.lower() == "none":
-            setattr(namespace, self.dest, None)
-        else:
-            setattr(namespace, self.dest, values)
-
-
 def init_parser() -> argparse.ArgumentParser:
     """
     Initialise argument parser for the script
@@ -47,7 +35,6 @@ def init_parser() -> argparse.ArgumentParser:
         metavar="<int>",
         type=int,
         help="Specify a number of metacells to be produced by SEACells",
-        action=NoneAction,
     )
     parser.add_argument(
         "--gamma",
@@ -55,7 +42,6 @@ def init_parser() -> argparse.ArgumentParser:
         metavar="<file>",
         help="Specify a parameter gamma to calculate number of metacells. \
         So n_metacells = n_cells / gamma. Mutually exclusive with n_metacells",
-        action=NoneAction,
     )
     parser.add_argument(
         "--output_dir",
@@ -90,7 +76,6 @@ def init_parser() -> argparse.ArgumentParser:
         metavar="<str>",
         help="Specify celltype label",
         default=None,
-        action=NoneAction,
     )
     parser.add_argument(
         "--convergence_epsilon",
