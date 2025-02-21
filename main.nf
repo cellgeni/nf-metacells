@@ -27,17 +27,19 @@ workflow  {
             helpMessage()
             System.exit(1)
         } else {
-            // Run SEACells
+            // Read the files from the filelist
             files = Channel.fromPath(params.filelist, checkIfExists: true)
-
+                           .splitCsv(header: true, sep: ',')
+                            .map { row -> tuple(row.item, row.filepath) }
+            // Run SEACells
             SEACellsAggregate(
                 files,
-                params.seacells.n_cells ? params.seacells.n_cells : null,
-                params.seacells.gamma ? params.seacells.gamma : null,
+                params.seacells.n_cells ? params.seacells.n_cells : "",
+                params.seacells.gamma ? params.seacells.gamma : "",
                 params.seacells.type,
                 params.seacells.n_top_genes,
                 params.seacells.n_components,
-                params.seacells.celltype_label ? params.seacells.celltype_label : null,
+                params.seacells.celltype_label ? params.seacells.celltype_label : "",
                 params.seacells.convergence_epsilon,
                 params.seacells.min_iterations,
                 params.seacells.max_iterations
