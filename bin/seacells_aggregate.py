@@ -106,6 +106,11 @@ def init_parser() -> argparse.ArgumentParser:
         default=10,
         help="Specify number of components to use for initialization",
     )
+    parser.add_argument(
+        "--use_sparse",
+        action="store_true",
+        help="Specify whether to use sparse matrix",
+    )
 
     return parser
 
@@ -186,6 +191,7 @@ def fit_seacells_model(
     convergence_epsilon: float,
     mit_iter: int,
     max_iter: int,
+    use_sparse: bool = False,
 ) -> SEACells.core.SEACells:
     """
     Fit SEACells model
@@ -208,6 +214,7 @@ def fit_seacells_model(
         n_SEACells=n_metacells,
         n_waypoint_eigs=n_waypoint_eigs,
         convergence_epsilon=convergence_epsilon,
+        use_sparse=use_sparse,
     )
 
     # construct kernel
@@ -231,7 +238,7 @@ def plot_assignments(model: SEACells.core.SEACells, output_dir: str):
     """
     logging.info("Plotting assignments")
     # create plots
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 15), gridspec_kw={"hspace": 0.3})
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 15), gridspec_kw={"wspace": 0.3})
 
     # non-trivial assignments
     sns.displot((model.A_.T > 0.1).sum(axis=1), kde=False, ax=ax1)
@@ -265,7 +272,7 @@ def plot_metacell_stats(
     logging.info("Plotting metacell stats")
     # create plots
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(
-        2, 2, figsize=(10, 15), gridspec_kw={"hspace": 0.3}
+        2, 2, figsize=(10, 15), gridspec_kw={"hspace": 0.3, "wspace": 0.3}
     )
 
     # metacell sizes
@@ -365,10 +372,13 @@ def main():
         convergence_epsilon=args.convergence_epsilon,
         mit_iter=args.min_iter,
         max_iter=args.max_iter,
+        use_sparse=args.use_sparse,
     )
 
     # assign cells to metacells
+    logging.info("Make hard assignments")
     hard_labels = model.get_hard_assignments()
+    logging.info("Make soft assignments")
     soft_labels, weights = model.get_soft_assignments()
 
     # evaluate results

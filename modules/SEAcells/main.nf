@@ -12,6 +12,7 @@ process SEACellsAggregate {
         val(convergence_epsilon)
         val(min_iterations)
         val(max_iterations)
+        val(use_sparse)
     output:
         path("${item}")
     script:
@@ -28,6 +29,7 @@ process SEACellsAggregate {
             ${celltype_label ? "--celltype_label ${celltype_label}" : ""} \
             --convergence_epsilon ${convergence_epsilon} \
             --min_iter ${min_iterations} \
-            --max_iter ${max_iterations}
+            --max_iter ${max_iterations} \
+            ${use_sparse ? "--use_sparse" : ""}
         """
 }

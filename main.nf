@@ -42,7 +42,8 @@ workflow  {
                 params.seacells.celltype_label ? params.seacells.celltype_label : "",
                 params.seacells.convergence_epsilon,
                 params.seacells.min_iterations,
-                params.seacells.max_iterations
+                params.seacells.max_iterations,
+                params.seacells.use_sparse
             )
         }
     }
