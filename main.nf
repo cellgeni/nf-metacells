@@ -4,7 +4,36 @@ include { SEACellsAggregate } from './modules/SEAcells/main.nf'
 // HELP MESSAGE
 def helpMessage() {
     log.info """
-    Usage: nextflow run main.nf --input_dir <input_dir> --output_dir <output_dir> --n_cells <n_cells> --gamma <gamma> --type <type> --n_top_genes <n_top_genes> --n_components <n_components> --celltype_label <celltype_label> --convergence_epsilon <convergence_epsilon> --min_iterations <min_iterations> --max_iterations <max_iterations>
+    ===========================
+    Pipeline to aggregate metacells/pseudobulks
+    ===========================
+    This pipeline performs metacell-aggregation (only SEACells option is available at the moment)
+    Usage: nextflow run main.nf [OPTIONS]
+        Required options:
+        --filelist                      File containing the list of files to be aggregated
+
+        SEACells options:
+        --seacells.enabled              Enable SEACells aggregation
+        --seacells.n_cells              Number of metacells to be aggregated
+        --seacells.gamma                Gamma value for the adaptive bandwidth kernel
+        --seacells.type                 Type of aggregation (gex or atac)
+        --seacells.n_top_genes          Number of top variable genes to be used for aggregation (GEX only)
+        --seacells.n_components         Number of components to be used for aggregation (PCA for GEX and LSI for ATAC)
+        --seacells.celltype_label       Label for the celltype column in the metadata (used to calculate aggregation metrics)
+        --seacells.convergence_epsilon  Convergence epsilon for the optimization
+        --seacells.min_iterations       Minimum number of iterations for the optimization
+        --seacells.max_iterations       Maximum number of iterations for the optimization
+        --seacells.use_sparse           Use sparse matrix for the optimization
+            
+    Examples:
+        1. Perform metacell aggregation using SEACells
+            nextflow run main.nf --filelist filelist.csv --seacells.enabled --seacells.gamma 75 --seacells.type gex
+
+    == filelist.csv format ==
+    item,filepath
+    pbmc_10k,/lustre/scratch126/cellgen/team361/data/pbmc/results/pbmc_10k/pbmc10k/pbmc10k.h5ad
+    pbmc_3k,/lustre/scratch126/cellgen/team361/data/pbmc/results/pbmc3k/pbmc3k/pbmc3k.h5ad
+    ========================
     """.stripIndent()
 }
 
