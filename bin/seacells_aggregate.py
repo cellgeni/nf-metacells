@@ -111,6 +111,13 @@ def init_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Specify whether to use sparse matrix",
     )
+    parser.add_argument(
+        "--precomputed",
+        type=str,
+        metavar="<obsm_key>",
+        default=None,
+        help="Specify obsm key with precomputed embedding",
+    )
 
     return parser
 
@@ -351,7 +358,12 @@ def main():
 
     # preprocess data
     logging.info("Preprocessing data of type: %s", args.type)
-    if args.type == "gex":
+    if args.precomputed:
+        components_key = args.precomputed
+        adata_processed = adata.copy()
+        if components_key not in adata.obsm.keys():
+            raise ValueError("Invalid precomputed key")
+    elif args.type == "gex":
         adata_processed = process_gex(adata, args.n_top_genes, args.n_components)
         components_key = "X_pca"
     elif args.type == "atac":
