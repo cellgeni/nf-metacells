@@ -100,14 +100,14 @@ def init_parser() -> argparse.ArgumentParser:
         required=True,
     )
     parser.add_argument(
-        "--sample_prefix",
+        "--sample_suffix",
         type=str,
         metavar="<str>",
         default=None,
         help="Specify sample prefix for barcode if needed",
     )
     parser.add_argument(
-        "--prefix_delimiter",
+        "--suffix_delimiter",
         type=str,
         metavar="<str>",
         default="_",
@@ -299,7 +299,7 @@ def main():
         writer.writeheader()
         for barcode, metacell in metacell_dict.items():
             barcode = (
-                args.sample_prefix + args.prefix_delimiter + barcode
+                barcode + args.suffix_delimiter + args.sample_suffix
                 if args.sample_prefix
                 else barcode
             )
