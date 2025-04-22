@@ -1,5 +1,7 @@
-// IMPORT MODULES
-include { SEACellsAggregate } from './modules/SEAcells/main.nf'
+// INCLUDE MODULES
+include { SEACellsAggregate } from './modules/SEAcells'
+include { HierarchialAggregate } from './modules/hierarchial'
+include { H5_TO_H5AD } from './modules/utils'
 
 // HELP MESSAGE
 def helpMessage() {
@@ -39,10 +41,30 @@ def helpMessage() {
 
 workflow  {
     // Send help message if no arguments are provided or -help is used
-    if (params.help || !params.filelist || !params.seacells.enabled) {
+    if (params.help || !params.filelist || (!params.seacells.enabled && !params.hierarchial.enabled)) {
         helpMessage()
         System.exit(0)
     }
+
+    // Read the files from the filelist
+    files = Channel.fromPath(params.filelist, checkIfExists: true)
+                    .splitCsv(header: true, sep: ',')
+                    .map { row -> tuple(row.item, row.filepath) }
+
+    // Convert H5 files to H5AD if needed
+    if (params.h5) {
+        // If celltype annotation is provided, check if user provided a name for celltype column in adata object (if not use "celltype")
+        params.celltype_label = params.celltype_label ? params.celltype_annotation && params.celltype_label : "celltype"
+
+        // Convert H5 files to H5AD
+        files = H5_TO_H5AD(
+            files,
+            params.celltype_annotation,
+            params.celltype_label,
+            params.delimiter
+        )
+    }
+    
 
     // Run SEACells if enabled
     if (params.seacells.enabled) {
@@ -51,15 +73,12 @@ workflow  {
             log.error "Missing arguments for SEACells"
             helpMessage()
             System.exit(1)
+        // Check that only one of n_cells or gamma is provided
         } else if (params.seacells.n_cells && params.seacells.gamma) {
             log.error "Both n_cells and gamma cannot be provided at the same time"
             helpMessage()
             System.exit(1)
         } else {
-            // Read the files from the filelist
-            files = Channel.fromPath(params.filelist, checkIfExists: true)
-                           .splitCsv(header: true, sep: ',')
-                            .map { row -> tuple(row.item, row.filepath) }
             // Run SEACells
             SEACellsAggregate(
                 files,
@@ -68,11 +87,36 @@ workflow  {
                 params.seacells.type,
                 params.seacells.n_top_genes,
                 params.seacells.n_components,
-                params.seacells.celltype_label ? params.seacells.celltype_label : "",
+                params.celltype_label ? (params.h5 && params.celltype_annotation) || (!params.h5 && params.celltype_label) : "", // celltype label is used if (1) .h5 file with annotation was provided or (2) .h5ad with celltype column in .obs was provided
                 params.seacells.convergence_epsilon,
                 params.seacells.min_iterations,
                 params.seacells.max_iterations,
                 params.seacells.use_sparse
+            )
+        }
+    }
+
+    // Run Hierarchial clustering if enabled
+    if (params.hierarchial.enabled) {
+        // Check that all necessary arguments are provided
+        if ( !params.hierarchial.n_min || !params.hierarchial.n_max || !params.hierarchial.type || !params.celltype_label ) {
+            log.error "Missing arguments for hierarchial clustering"
+            helpMessage()
+            System.exit(1)
+        } else {
+            // Run Hierarchial clustering
+            HierarchialAggregate(
+                files,
+                params.hierarchial.n_min,
+                params.hierarchial.n_max,
+                params.hierarchial.type,
+                params.hierarchial.n_top_genes,
+                params.hierarchial.n_components,
+                params.celltype_label,
+                params.hierarchial.n_neighbors,
+                params.hierarchial.precomputed,
+                params.hierarchial.method,
+                params.delimiter ? params.delimiter : ""
             )
         }
     }
