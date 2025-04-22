@@ -11,6 +11,7 @@ import numpy as np
 import scanpy as sc
 import seaborn as sns
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # Configure logging
 logging.basicConfig(
@@ -30,6 +31,13 @@ def init_parser() -> argparse.ArgumentParser:
         type=str,
         metavar="<file>",
         help="Specify a path to AnnData object",
+    )
+    parser.add_argument(
+        "--sample",
+        type=str,
+        metavar="<str>",
+        default=None,
+        help="Specify sample name for the file",
     )
     parser.add_argument(
         "--n_metacells",
@@ -117,6 +125,13 @@ def init_parser() -> argparse.ArgumentParser:
         metavar="<obsm_key>",
         default=None,
         help="Specify obsm key with precomputed embedding",
+    )
+    parser.add_argument(
+        "--delimiter",
+        type=str,
+        metavar="<str>",
+        default=None,
+        help="Specify sample suffix for barcode if needed",
     )
 
     return parser
@@ -343,6 +358,26 @@ def evaluate_results(
     logging.info("Completed evaluating results")
 
 
+def format_hard_assignmets(
+    assignments: pd.DataFrame, sample: str = None, delimiter: str = None
+) -> pd.DataFrame:
+    """
+    Format hard assignments
+    Args:
+        assignments (pd.DataFrame): Hard assignments
+    Returns:
+        pd.DataFrame: Formatted hard assignments
+    """
+    # change column names
+    assignments.columns = ["metacell"]
+    assignments.index.name = "barcode"
+
+    # add sample name to index
+    if delimiter:
+        assignments.index = assignments.index + delimiter + sample
+    return assignments
+
+
 def main():
     """
     Main function
@@ -389,7 +424,10 @@ def main():
 
     # assign cells to metacells
     logging.info("Make hard assignments")
-    hard_labels = model.get_hard_assignments()
+    hard_labels = format_hard_assignmets(
+        model.get_hard_assignments(), sample=args.sample, delimiter=args.delimiter
+    )
+
     logging.info("Make soft assignments")
     soft_labels, weights = model.get_soft_assignments()
 
