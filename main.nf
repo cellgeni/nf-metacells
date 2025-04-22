@@ -102,7 +102,9 @@ workflow  {
                 params.seacells.convergence_epsilon,
                 params.seacells.min_iterations,
                 params.seacells.max_iterations,
-                params.seacells.use_sparse
+                params.seacells.use_sparse,
+                params.seacells.precomputed,
+                params.delimiter ? params.delimiter : ""
             )
         }
     }

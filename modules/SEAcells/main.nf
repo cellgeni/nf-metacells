@@ -13,12 +13,15 @@ process SEACellsAggregate {
         val(min_iterations)
         val(max_iterations)
         val(use_sparse)
+        val(precomputed)
+        val(delimiter)
     output:
         path("*")
     script:
         """
         seacells_aggregate.py \
             --adata ${adata} \
+            --sample ${sample} \
             ${n_cells ? "--n_metacells ${n_cells}" : ""} \
             ${gamma ? "--gamma ${gamma}" : ""} \
             --type ${type} \
@@ -29,6 +32,8 @@ process SEACellsAggregate {
             --convergence_epsilon ${convergence_epsilon} \
             --min_iter ${min_iterations} \
             --max_iter ${max_iterations} \
-            ${use_sparse ? "--use_sparse" : ""}
+            ${use_sparse ? "--use_sparse" : ""} \
+            ${precomputed ? "--precomputed ${precomputed}" : ""} \
+            ${delimiter ? "--delimiter ${delimiter}" : ""}
         """
 }
