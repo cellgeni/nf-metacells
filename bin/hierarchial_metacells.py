@@ -30,6 +30,13 @@ def init_parser() -> argparse.ArgumentParser:
         required=True,
     )
     parser.add_argument(
+        "--sample",
+        type=str,
+        metavar="<str>",
+        default=None,
+        help="Specify sample name for the file",
+    )
+    parser.add_argument(
         "--n_min",
         metavar="<int>",
         type=int,
@@ -104,14 +111,7 @@ def init_parser() -> argparse.ArgumentParser:
         type=str,
         metavar="<str>",
         default=None,
-        help="Specify sample prefix for barcode if needed",
-    )
-    parser.add_argument(
-        "--suffix_delimiter",
-        type=str,
-        metavar="<str>",
-        default="_",
-        help="Specify delimiter for sample prefix",
+        help="Specify sample suffix for barcode if needed",
     )
 
     return parser
@@ -200,6 +200,7 @@ def calculate_metacells(
     adata: sc.AnnData,
     n_min: int,
     n_max: int,
+    celltype_label: str,
     method: str = "louvain",
     n_components: int = 50,
     n_neighbors: int = 15,
@@ -217,10 +218,10 @@ def calculate_metacells(
         Dict[str, str]: Metacell assignments
     """
     metacell_dict = dict()
-    for celltype in adata.obs["celltype"].unique():
+    for celltype in adata.obs[celltype_label].unique():
         # subset adata by celltype
         logging.info("Calculating metacells for celltype: %s", celltype)
-        adata_celltype = adata[adata.obs["celltype"] == celltype].copy()
+        adata_celltype = adata[adata.obs[celltype_label] == celltype].copy()
 
         # check if number of cells greater than cluster size
         if adata_celltype.n_obs < n_max:
@@ -283,6 +284,7 @@ def main():
         adata_processed,
         args.n_min,
         args.n_max,
+        args.celltype_label,
         args.method,
         args.n_components,
         args.n_neighbors,
@@ -299,8 +301,8 @@ def main():
         writer.writeheader()
         for barcode, metacell in metacell_dict.items():
             barcode = (
-                barcode + args.suffix_delimiter + args.sample_suffix
-                if args.sample_prefix
+                barcode + args.sample_suffix + args.sample
+                if args.sample_suffix
                 else barcode
             )
             writer.writerow({"barcode": barcode, "metacell": metacell})

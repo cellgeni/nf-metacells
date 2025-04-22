@@ -1,7 +1,7 @@
 process HierarchialAggregate {
-    tag "Running SEAcells metacells aggregation foor ${item}"
+    tag "Running hierarchial clustering for ${sample}"
     input:
-        tuple val(item), path(adata)
+        tuple val(sample), path(adata)
         val(n_min)
         val(n_max)
         val(type)
@@ -11,18 +11,17 @@ process HierarchialAggregate {
         val(n_neighbors)
         val(precomputed)
         val(method)
-        val(sample_prefix)
-        val(prefix_delimiter)
+        val(sample_suffix)
     output:
-        path("${item}")
+        path("hierarchial_metacells.csv")
     script:
         """
-        mkdir -p ${item}
         hierarchial_metacells.py \
             --adata ${adata} \
+            --sample ${sample} \
             --celltype_label ${celltype_label} \
             --method ${method} \
-            --output metacells.csv \
+            --output hierarchial_metacells.csv \
             --n_min ${n_min} \
             --n_max ${n_max} \
             --type ${type} \
@@ -30,7 +29,6 @@ process HierarchialAggregate {
             --n_components ${n_components} \
             --n_neighbors ${n_neighbors} \
             ${precomputed ? "--precomputed ${precomputed}" : ""} \
-            ${sample_prefix ? "--sample_prefix ${sample_prefix}" : ""} \
-            ${prefix_delimiter ? "--prefix_delimiter ${prefix_delimiter}" : ""}
+            ${sample_suffix ? "--sample_suffix ${sample_suffix}" : ""}
         """
 }
