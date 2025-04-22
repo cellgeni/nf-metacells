@@ -1,8 +1,8 @@
 // The module that contains the processes to run SEAcells metacells aggregation
 process SEACellsAggregate {
-    tag "Running SEAcells metacells aggregation foor ${item}"
+    tag "Running SEAcells metacells aggregation for ${sample}"
     input:
-        tuple val(item), path(adata)
+        tuple val(sample), path(adata)
         val(n_cells)
         val(gamma)
         val(type)
@@ -14,16 +14,15 @@ process SEACellsAggregate {
         val(max_iterations)
         val(use_sparse)
     output:
-        path("${item}")
+        path("*")
     script:
         """
-        mkdir -p ${item}
         seacells_aggregate.py \
             --adata ${adata} \
             ${n_cells ? "--n_metacells ${n_cells}" : ""} \
             ${gamma ? "--gamma ${gamma}" : ""} \
             --type ${type} \
-            --output_dir ${item} \
+            --output_dir . \
             --n_top_genes ${n_top_genes} \
             --n_components ${n_components} \
             ${celltype_label ? "--celltype_label ${celltype_label}" : ""} \

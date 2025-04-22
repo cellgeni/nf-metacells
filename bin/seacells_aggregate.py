@@ -404,11 +404,13 @@ def main():
 
     # save results
     logging.info("Saving results")
-    adata_processed.write_h5ad(os.path.join(args.output_dir, "metacells.h5ad"))
-    hard_labels.to_csv(os.path.join(args.output_dir, "metacell_assignments.csv"))
-    soft_labels.to_csv(os.path.join(args.output_dir, "soft_assignments.csv"))
-    np.save(os.path.join(args.output_dir, "weights.npy"), weights)
-    with open(os.path.join(args.output_dir, "model.pkl"), "wb") as file:
+    adata_processed.write_h5ad(os.path.join(args.output_dir, "seacell_metacells.h5ad"))
+    hard_labels.to_csv(
+        os.path.join(args.output_dir, "seacell_metacell_assignments.csv")
+    )
+    soft_labels.to_csv(os.path.join(args.output_dir, "seacell_soft_assignments.csv"))
+    np.save(os.path.join(args.output_dir, "seacell_weights.npy"), weights)
+    with open(os.path.join(args.output_dir, "seacell_model.pkl"), "wb") as file:
         pickle.dump(model, file)
     logging.info("Successfully saved results")
 
