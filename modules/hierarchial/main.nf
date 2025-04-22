@@ -11,7 +11,7 @@ process HierarchialAggregate {
         val(n_neighbors)
         val(precomputed)
         val(method)
-        val(sample_suffix)
+        val(delimiter)
     output:
         path("hierarchial_metacells.csv")
     script:
@@ -29,6 +29,6 @@ process HierarchialAggregate {
             --n_components ${n_components} \
             --n_neighbors ${n_neighbors} \
             ${precomputed ? "--precomputed ${precomputed}" : ""} \
-            ${sample_suffix ? "--sample_suffix ${sample_suffix}" : ""}
+            ${delimiter ? "--delimiter ${delimiter}" : ""}
         """
 }

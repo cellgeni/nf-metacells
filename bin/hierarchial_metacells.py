@@ -107,7 +107,7 @@ def init_parser() -> argparse.ArgumentParser:
         required=True,
     )
     parser.add_argument(
-        "--sample_suffix",
+        "--delimiter",
         type=str,
         metavar="<str>",
         default=None,
@@ -301,9 +301,7 @@ def main():
         writer.writeheader()
         for barcode, metacell in metacell_dict.items():
             barcode = (
-                barcode + args.sample_suffix + args.sample
-                if args.sample_suffix
-                else barcode
+                barcode + args.delimiter + args.sample if args.delimiter else barcode
             )
             writer.writerow({"barcode": barcode, "metacell": metacell})
 
