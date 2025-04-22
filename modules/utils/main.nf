@@ -14,7 +14,7 @@ process H5_TO_H5AD {
             --sample ${sample} \
             ${celltype_annotation ? "--celltype_annotation ${celltype_annotation}" : ""} \
             ${celltype_label ? "--celltype_label ${celltype_label}" : ""} \
-            --delimiter ${delimiter} \
+            ${delimiter ? "--delimiter ${delimiter}" : ""} \
             --output ${sample}.h5ad
         """
 }
