@@ -41,7 +41,7 @@ def helpMessage() {
 
 workflow  {
     // Send help message if no arguments are provided or -help is used
-    if (params.help || !params.filelist || (!params.seacells.enabled && !params.hierarchial.enabled)) {
+    if (params.help || !params.filelist || (!params.seacells.enabled && !params.hierarchial.enabled) || !params.type ) {
         helpMessage()
         System.exit(0)
     }
@@ -50,26 +50,37 @@ workflow  {
     files = Channel.fromPath(params.filelist, checkIfExists: true)
                     .splitCsv(header: true, sep: ',')
                     .map { row -> tuple(row.item, row.filepath) }
+    
 
     // Convert H5 files to H5AD if needed
     if (params.h5) {
         // If celltype annotation is provided, check if user provided a name for celltype column in adata object (if not use "celltype")
-        params.celltype_label = params.celltype_label ? params.celltype_annotation && params.celltype_label : "celltype"
+        if (params.celltype_annotation) {
+            params.celltype_label = params.celltype_label ?  params.celltype_label : "celltype"
+        // if celltype annotation is not provided, check if user provided a name for celltype column. Ask whether they intended to do so
+        } else if (params.celltype_label) {
+            log.error "Celltype label provided but no celltype annotation provided"
+            helpMessage()
+            System.exit(1)
+        }
 
         // Convert H5 files to H5AD
         files = H5_TO_H5AD(
             files,
-            params.celltype_annotation,
-            params.celltype_label,
-            params.delimiter
+            params.celltype_annotation ? params.celltype_annotation : "",
+            params.celltype_label ? params.celltype_label : "",
+            params.delimiter ? params.delimiter : ""
         )
+
+        // Set delimiter to empty string as it was added at .h5ad file
+        params.delimiter = ""
     }
     
 
     // Run SEACells if enabled
     if (params.seacells.enabled) {
         // Check that all necessary arguments are provided
-        if ( ( !params.seacells.n_cells && !params.seacells.gamma ) || !params.seacells.type ) {
+        if ( !params.seacells.n_cells && !params.seacells.gamma ) {
             log.error "Missing arguments for SEACells"
             helpMessage()
             System.exit(1)
@@ -84,10 +95,10 @@ workflow  {
                 files,
                 params.seacells.n_cells ? params.seacells.n_cells : "",
                 params.seacells.gamma ? params.seacells.gamma : "",
-                params.seacells.type,
+                params.type,
                 params.seacells.n_top_genes,
                 params.seacells.n_components,
-                params.celltype_label ? (params.h5 && params.celltype_annotation) || (!params.h5 && params.celltype_label) : "", // celltype label is used if (1) .h5 file with annotation was provided or (2) .h5ad with celltype column in .obs was provided
+                params.celltype_label ? params.celltype_label : "", // celltype label is used if (1) .h5 file with annotation was provided or (2) .h5ad with celltype column in .obs was provided
                 params.seacells.convergence_epsilon,
                 params.seacells.min_iterations,
                 params.seacells.max_iterations,
@@ -99,7 +110,7 @@ workflow  {
     // Run Hierarchial clustering if enabled
     if (params.hierarchial.enabled) {
         // Check that all necessary arguments are provided
-        if ( !params.hierarchial.n_min || !params.hierarchial.n_max || !params.hierarchial.type || !params.celltype_label ) {
+        if ( !params.hierarchial.n_min || !params.hierarchial.n_max || !params.celltype_label ) {
             log.error "Missing arguments for hierarchial clustering"
             helpMessage()
             System.exit(1)
@@ -109,7 +120,7 @@ workflow  {
                 files,
                 params.hierarchial.n_min,
                 params.hierarchial.n_max,
-                params.hierarchial.type,
+                params.type,
                 params.hierarchial.n_top_genes,
                 params.hierarchial.n_components,
                 params.celltype_label,
