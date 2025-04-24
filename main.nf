@@ -1,7 +1,7 @@
 // INCLUDE MODULES
 include { SEACellsAggregate } from './modules/SEAcells'
 include { HierarchialAggregate } from './modules/hierarchial'
-include { H5_TO_H5AD } from './modules/utils'
+include { TO_H5AD; ATTACH_CELL_METADATA } from './modules/utils'
 
 // HELP MESSAGE
 def helpMessage() {
@@ -13,19 +13,38 @@ def helpMessage() {
     Usage: nextflow run main.nf [OPTIONS]
         Required options:
         --filelist                      File containing the list of files to be aggregated
+        --type                          Type of data to be aggregated (gex or atac)
+        --celltype_label                Cell type label for the aggregation (required for hierarchial clustering; optional for SEACells)
+
+        Optional options:
+        --help                          Show this help message
+        --outdir                        Output directory for the aggregated files
+        --raw                           Convert raw files to H5AD format (if raw files' paths are provided)
+        --delimiter                     Specify delimiter if you want to add sample id to the barcode names
+        --cell_metadata                 Specify metadata.csv file to attach to the .obs section of AnnData object
+        --barcode_column                Barcode column name in the cell metadata file (specify "obs_names" if you want to use the .obs index column)
 
         SEACells options:
         --seacells.enabled              Enable SEACells aggregation
         --seacells.n_cells              Number of metacells to be aggregated
         --seacells.gamma                Gamma value for the adaptive bandwidth kernel
-        --seacells.type                 Type of aggregation (gex or atac)
-        --seacells.n_top_genes          Number of top variable genes to be used for aggregation (GEX only)
-        --seacells.n_components         Number of components to be used for aggregation (PCA for GEX and LSI for ATAC)
-        --seacells.celltype_label       Label for the celltype column in the metadata (used to calculate aggregation metrics)
-        --seacells.convergence_epsilon  Convergence epsilon for the optimization
-        --seacells.min_iterations       Minimum number of iterations for the optimization
-        --seacells.max_iterations       Maximum number of iterations for the optimization
-        --seacells.use_sparse           Use sparse matrix for the optimization
+        --seacells.n_top_genes          Number of top variable genes to be used for aggregation (GEX only). Default: 2000
+        --seacells.n_components         Number of components to be used for aggregation (PCA for GEX and LSI for ATAC). Default: 50
+        --seacells.convergence_epsilon  Convergence epsilon for the optimization. Default: 0.00001
+        --seacells.min_iterations       Minimum number of iterations for the optimization. Default: 10
+        --seacells.max_iterations       Maximum number of iterations for the optimization. Default: 100
+        --seacells.use_sparse           Use sparse matrix for the optimization. Default: false
+        --seacells.precomputed          Use precomputed distance matrix for the aggregation.
+
+        Hierarchial options:
+        --hierarchial.enabled           Enable Hierarchial clustering aggregation
+        --hierarchial.n_min             Minimum number of clusters for the aggregation
+        --hierarchial.n_max             Maximum number of clusters for the aggregation
+        --hierarchial.method            Method for the aggregation (kmeans or louvain)
+        --hierarchial.n_top_genes       Number of top variable genes to be used for aggregation (GEX only). Default: 2000
+        --hierarchial.n_components      Number of components to be used for aggregation (PCA for GEX and LSI for ATAC). Default: 50
+        --hierarchial.n_neighbors       Number of neighbors for the aggregation. Default: 15
+        --hierarchial.precomputed       Use precomputed distance matrix for the aggregation.
             
     Examples:
         1. Perform metacell aggregation using SEACells
@@ -40,10 +59,17 @@ def helpMessage() {
 }
 
 workflow  {
-    // Send help message if no arguments are provided or -help is used
-    if (params.help || !params.filelist || (!params.seacells.enabled && !params.hierarchial.enabled) || !params.type ) {
+    // Send help message if -help is used
+    if ( params.help || !params.filelist ) {
         helpMessage()
         System.exit(0)
+    }
+
+    // Check if the filelist is provided
+    if (!params.filelist || (!params.seacells.enabled && !params.hierarchial.enabled) || !params.type ) {
+        log.error "Missing required arguments: filelist, type, seacells.enabled or hierarchial.enabled options"
+        helpMessage()
+        System.exit(1)
     }
 
     // Read the files from the filelist
@@ -52,28 +78,32 @@ workflow  {
                     .map { row -> tuple(row.item, row.filepath) }
     
 
-    // Convert H5 files to H5AD if needed
-    if (params.h5) {
-        // If celltype annotation is provided, check if user provided a name for celltype column in adata object (if not use "celltype")
-        if (params.celltype_annotation) {
-            params.celltype_label = params.celltype_label ?  params.celltype_label : "celltype"
-        // if celltype annotation is not provided, check if user provided a name for celltype column. Ask whether they intended to do so
-        } else if (params.celltype_label) {
-            log.error "Celltype label provided but no celltype annotation provided"
-            helpMessage()
-            System.exit(1)
-        }
-
+    // Convert raw files to H5AD if needed
+    if (params.raw) {
         // Convert H5 files to H5AD
-        files = H5_TO_H5AD(
+        files = TO_H5AD(
             files,
-            params.celltype_annotation ? params.celltype_annotation : "",
-            params.celltype_label ? params.celltype_label : "",
             params.delimiter ? params.delimiter : ""
         )
 
         // Set delimiter to empty string as it was added at .h5ad file
         params.delimiter = ""
+    }
+
+    // Attach cell metadata to .obs section of AnnData object if celltype annotation is provided
+    if (params.cell_metadata) {
+
+        // Check that barcode column is provided
+        if (!params.barcode_column) {
+            log.error "Cell metadata was provided, but --barcode_column is missing"
+            System.exit(1)
+        }
+
+        files = ATTACH_CELL_METADATA(
+            files,
+            params.cell_metadata,
+            params.barcode_column
+        )
     }
     
 
@@ -98,7 +128,7 @@ workflow  {
                 params.type,
                 params.seacells.n_top_genes,
                 params.seacells.n_components,
-                params.celltype_label ? params.celltype_label : "", // celltype label is used if (1) .h5 file with annotation was provided or (2) .h5ad with celltype column in .obs was provided
+                params.celltype_label ? params.celltype_label : "",
                 params.seacells.convergence_epsilon,
                 params.seacells.min_iterations,
                 params.seacells.max_iterations,
