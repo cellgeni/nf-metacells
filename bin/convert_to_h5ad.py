@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+
+import os
+import logging
+import argparse
+import scanpy as sc
+from colored_logger import setup_logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+
+def init_parser() -> argparse.ArgumentParser:
+    """
+    Initialise argument parser for the script
+    """
+    parser = argparse.ArgumentParser(
+        description="Script validates sample and annotation tables and splits annotation table into separate celltypes"
+    )
+    parser.add_argument(
+        "--input",
+        type=str,
+        metavar="<path>",
+        help="Specify a path to input file",
+        required=True,
+    )
+    parser.add_argument(
+        "--sample_id",
+        type=str,
+        metavar="<str>",
+        default=None,
+        help="Specify sample name for the file",
+    )
+    parser.add_argument(
+        "--output",
+        metavar="<path>",
+        type=str,
+        help="Specify a path to output .h5ad file",
+        default=10,
+    )
+    parser.add_argument(
+        "--delimiter",
+        type=str,
+        metavar="<str>",
+        default=None,
+        help="Specify sample delimiter",
+    )
+
+    return parser
+
+
+def check_10x_mtx_files(directory: str) -> bool:
+    """
+    Check if the directory contains the required 10x mtx files
+    """
+    mtx_exists = os.path.isfile(os.path.join(directory, "matrix.mtx"))
+    barcodes_exists = os.path.isfile(os.path.join(directory, "barcodes.tsv"))
+    features_exists = os.path.isfile(os.path.join(directory, "features.tsv"))
+
+    return mtx_exists and barcodes_exists and features_exists
+
+
+def main() -> None:
+    # Parse arguments
+    parser = init_parser()
+    args = parser.parse_args()
+
+    # Setup logging
+    setup_logging("")
+
+    # Check if input is directory
+    if os.path.isdir(args.input):
+        # return error if any of the required files are missing
+        if not check_10x_mtx_files(args.input):
+            raise FileNotFoundError(
+                "The specified directory does not contain the required files: matrix.mtx, barcodes.tsv, and features.tsv"
+            )
+
+        # load 10x mtx file
+        logging.info("Loading 10x mtx file to AnnData object")
+        adata = sc.read_10x_mtx(
+            args.file,
+            var_names="gene_symbols",
+            gex_only=True,
+        )
+    else:
+        # get file extension
+        _, extension = os.path.splitext(args.file)
+
+        # read file based on extension using case match
+        match extension:
+            case ".h5":
+                logging.info("Loading .h5 file to AnnData object")
+                adata = sc.read_10x_h5(args.file, gex_only=True)
+            case ".mtx":
+                logging.info("Loading .mtx file to AnnData object")
+                adata = sc.read_mtx(args.file).T
+            case ".zarr":
+                logging.info("Loading .zarr file to AnnData object")
+                raise NotImplementedError(
+                    "Loading .zarr file is not implemented yet. Please provide a path to .h5 file or .mtx file."
+                )
+            case _:
+                raise ValueError(
+                    "Unsupported file format. Please provide a path to .h5 file, .mtx file or .mtx file directory."
+                )
+
+    # Add sample name to obs
+    logging.info("Adding sample name to obs")
+    adata.obs["sample"] = args.sample_id
+
+    # Add delimiter to obs index if specified
+    if args.delimiter:
+        logging.info("Adding delimiter to obs index")
+        adata.obs["barcode"] = adata.obs.index
+        adata.obs.index = adata.obs["barcode"] + args.delimiter + adata.obs["sample"]
+        adata.obs.index.name = "barcode_sample"
+
+    # Save adata abject
+    logging.info("Saving AnnData object to .h5ad file")
+    adata.write_h5ad(args.output)
+
+
+if __name__ == "__main__":
+    main()
