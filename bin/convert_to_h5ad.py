@@ -81,22 +81,22 @@ def main() -> None:
         # load 10x mtx file
         logging.info("Loading 10x mtx file to AnnData object")
         adata = sc.read_10x_mtx(
-            args.file,
+            args.input,
             var_names="gene_symbols",
             gex_only=True,
         )
     else:
         # get file extension
-        _, extension = os.path.splitext(args.file)
+        _, extension = os.path.splitext(args.input)
 
         # read file based on extension using case match
         match extension:
             case ".h5":
                 logging.info("Loading .h5 file to AnnData object")
-                adata = sc.read_10x_h5(args.file, gex_only=True)
+                adata = sc.read_10x_h5(args.input, gex_only=True)
             case ".mtx":
                 logging.info("Loading .mtx file to AnnData object")
-                adata = sc.read_mtx(args.file).T
+                adata = sc.read_mtx(args.input).T
             case ".zarr":
                 logging.info("Loading .zarr file to AnnData object")
                 raise NotImplementedError(
