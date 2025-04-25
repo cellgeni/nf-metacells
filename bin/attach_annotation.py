@@ -113,7 +113,9 @@ def format_obs(adata: an.AnnData, sample_id: str) -> pd.DataFrame:
     obs = adata.obs.copy()
 
     # Add sample_id to obs
-    sample_id_column = "sample_id" if sample_id in obs.columns else "merge_sample_id"
+    sample_id_column = (
+        "sample_id" if sample_id not in obs.columns else "merge_sample_id"
+    )
     obs[sample_id_column] = sample_id
 
     # Reset index
@@ -135,15 +137,18 @@ def vaildate_obs(obs: pd.DataFrame, barcode_column: str, obs_index_name: str) ->
         obs_index_name (str): obs index name
     Raises:
         ValueError: if barcode column contains NaN values
+    Returns:
+        str: final barcode column name
     """
     # Get final barcode column name
-    barcode_column = barcode_column if barcode_column != "obs_names" else obs_index_name
+    barcode_column = obs_index_name if barcode_column == "obs_names" else barcode_column
 
     # Check if barcode column contains any NaN values
     if obs[barcode_column].isnull().any():
         error_msg = f"Barcode column '{barcode_column}' contains NaN values. Please check the input .h5 file"
         logging.error(error_msg)
         raise ValueError(error_msg)
+    return barcode_column
 
 
 def validate_metadata(metadata: pd.DataFrame, sample_id: str) -> None:
@@ -185,13 +190,18 @@ def validate_metadata(metadata: pd.DataFrame, sample_id: str) -> None:
 
 
 def merge_metadata(
-    obs: pd.DataFrame, metadata: pd.DataFrame, sample_id_column: str, sample_id: str
+    obs: pd.DataFrame,
+    metadata: pd.DataFrame,
+    barcode_column: str,
+    sample_id_column: str,
+    sample_id: str,
 ) -> pd.DataFrame:
     """
     Merge metadata with obs DataFrame
     Args:
         obs (pd.DataFrame): obs DataFrame to merge
         metadata (pd.DataFrame): metadata DataFrame to merge
+        barcode_column (str): barcode column name in obs
         sample_id_column (str): sample_id column name in obs
         sample_id (str): sample_id to match with metadata
     Returns:
@@ -200,7 +210,7 @@ def merge_metadata(
     # Merge metadata with obs
     obs_merged = obs.merge(
         metadata,
-        left_on=[obs.index.name, sample_id_column],
+        left_on=[barcode_column, sample_id_column],
         right_on=["barcode", "sample_id"],
         how="inner",
     )
@@ -234,21 +244,24 @@ def main():
 
     # Validate obs and metadata
     logging.info("Validating metadata")
-    vaildate_obs(obs, args.barcode_column, obs_index_name)
+    barcode_column = vaildate_obs(obs, args.barcode_column, obs_index_name)
     validate_metadata(metadata, args.sample_id)
 
     # Merge metadata with obs
     logging.info("Merging metadata with obs")
-    obs_merged = merge_metadata(obs, metadata, sample_id_column, args.sample_id)
+    obs_merged = merge_metadata(
+        obs, metadata, barcode_column, sample_id_column, args.sample_id
+    )
 
     # Update AnnData's .obs with merged DataFrame
     logging.info("Updating AnnData's .obs with merged DataFrame")
     obs_merged.set_index(obs_index_name, inplace=True)
-    adata.obs = obs_merged
+    adata_metadata = adata[obs_merged.index]
+    adata_metadata.obs = obs_merged
 
     # Write AnnData object to .h5ad file
     logging.info("Writing AnnData object to .h5ad file")
-    adata.write_h5ad(args.output)
+    adata_metadata.write_h5ad(args.output)
     logging.info("Done!")
 
 
