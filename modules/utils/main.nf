@@ -22,7 +22,7 @@ process AttachCellMetadata {
         val(metadata)
         val(barcode_column)
     output:
-        tuple val(sample), path("${sample}_metadata.h5ad")
+        tuple val(sample), path("${sample}.h5ad")
     script:
         """
         attach_annotation.py \
