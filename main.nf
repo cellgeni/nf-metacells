@@ -1,7 +1,7 @@
 // INCLUDE MODULES
 include { SEACellsAggregate } from './modules/SEAcells'
 include { HierarchialAggregate } from './modules/hierarchial'
-include { TO_H5AD; ATTACH_CELL_METADATA } from './modules/utils'
+include { ToH5ad; AttachCellMetadata } from './modules/utils'
 
 // HELP MESSAGE
 def helpMessage() {
@@ -59,6 +59,10 @@ def helpMessage() {
 }
 
 workflow  {
+    // Define the default parameters
+    delimiter = params.delimiter
+    barcode_column = params.barcode_column
+
     // Send help message if -help is used
     if ( params.help || !params.filelist ) {
         helpMessage()
@@ -81,28 +85,28 @@ workflow  {
     // Convert raw files to H5AD if needed
     if (params.raw) {
         // Convert H5 files to H5AD
-        files = TO_H5AD(
+        files = ToH5ad(
             files,
-            params.delimiter ? params.delimiter : ""
+            delimiter ? delimiter : ""
         )
 
-        // Set delimiter to empty string as it was added at .h5ad file
-        params.delimiter = ""
+        // Set delimiter to empty string and barcode_column to "barcode" as it is done at for .h5ad file
+        delimiter = ""
+        barcode_column = "barcode"
     }
 
     // Attach cell metadata to .obs section of AnnData object if celltype annotation is provided
     if (params.cell_metadata) {
 
         // Check that barcode column is provided
-        if (!params.barcode_column) {
+        if (!barcode_column) {
             log.error "Cell metadata was provided, but --barcode_column is missing"
             System.exit(1)
         }
-
-        files = ATTACH_CELL_METADATA(
+        files = AttachCellMetadata(
             files,
             params.cell_metadata,
-            params.barcode_column
+            barcode_column
         )
     }
     

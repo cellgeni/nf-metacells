@@ -1,4 +1,4 @@
-process TO_H5AD {
+process ToH5ad {
     tag "Converting ${sample_id}'s file to .h5ad"
     input:
         tuple val(sample_id), path(input)
@@ -15,14 +15,14 @@ process TO_H5AD {
         """
 }
 
-process ATTACH_CELL_METADATA {
+process AttachCellMetadata {
     tag "Attaching cell metadata to .obs section of AnnData object for ${sample}"
     input:
         tuple val(sample), path(h5ad)
         val(metadata)
         val(barcode_column)
     output:
-        tuple val(sample), path("${sample}.h5ad")
+        tuple val(sample), path("${sample}_metadata.h5ad")
     script:
         """
         attach_annotation.py \
@@ -30,6 +30,6 @@ process ATTACH_CELL_METADATA {
             --sample_id ${sample} \
             --metadata ${metadata} \
             --barcode_column ${barcode_column} \
-            --output ${sample}.h5ad
+            --output ${sample}_metadata.h5ad
         """
 }
