@@ -138,7 +138,7 @@ workflow  {
                 params.seacells.max_iterations,
                 params.seacells.use_sparse,
                 params.seacells.precomputed,
-                params.delimiter ? params.delimiter : ""
+                delimiter ? delimiter : ""
             )
         }
     }
@@ -163,7 +163,7 @@ workflow  {
                 params.hierarchial.n_neighbors,
                 params.hierarchial.precomputed,
                 params.hierarchial.method,
-                params.delimiter ? params.delimiter : ""
+                delimiter ? delimiter : ""
             )
         }
     }
