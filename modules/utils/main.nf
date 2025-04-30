@@ -1,7 +1,7 @@
 process ToH5ad {
     tag "Converting ${sample_id}'s file to .h5ad"
     input:
-        tuple val(sample_id), path(input)
+        tuple val(sample_id), path(input, name: 'input/*')
         val(delimiter)
     output:
         tuple val(sample_id), path("${sample_id}.h5ad")
@@ -18,7 +18,7 @@ process ToH5ad {
 process AttachCellMetadata {
     tag "Attaching cell metadata to .obs section of AnnData object for ${sample}"
     input:
-        tuple val(sample), path(h5ad)
+        tuple val(sample), path(h5ad, name: 'input/*')
         val(metadata)
         val(barcode_column)
     output:
@@ -30,6 +30,6 @@ process AttachCellMetadata {
             --sample_id ${sample} \
             --metadata ${metadata} \
             --barcode_column ${barcode_column} \
-            --output ${sample}_metadata.h5ad
+            --output ${sample}.h5ad
         """
 }
