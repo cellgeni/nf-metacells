@@ -6,6 +6,7 @@ import csv
 from typing import Dict
 import numpy as np
 import muon
+import anndata as an
 import scanpy as sc
 from sknetwork.hierarchy import Paris, LouvainHierarchy, cut_balanced
 
@@ -115,6 +116,60 @@ def init_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+def validate_parameters(
+    adata: an.AnnData,
+    n_min: int,
+    n_max: int,
+    n_neighbors: int,
+    celltype_label: str,
+    n_components: str,
+    precomputed: str,
+) -> None:
+    """
+    Validate parameters for metacell calculation
+    Args:
+        adata (an.AnnData): AnnData object
+        n_min (int): Minimum number of cells in metacell
+        n_max (int): Maximum number of cells in metacell
+        n_neighbors (int): Number of nearest neighbors
+        celltype_label (str): Celltype label
+        n_components (int): Number of components for PCA/LSI
+        precomputed (str): Precomputed components key in adata.obsm
+
+    Raises:
+        ValueError: if any of the parameters are invalid
+    """
+    # Check if n_min is less than n_max
+    if n_min >= n_max:
+        err_msg = f"n_min ({n_min}) should be less than n_max ({n_max})"
+        logging.error(err_msg)
+        raise ValueError(err_msg)
+
+    # Check if n_neighbors is less than number of cells
+    if n_neighbors >= adata.n_obs:
+        err_msg = f"n_neighbors ({n_neighbors}) should be less than number of cells ({adata.n_obs})"
+        logging.error(err_msg)
+        raise ValueError(err_msg)
+
+    # Check if celltype_label is in adata.obs
+    if celltype_label not in adata.obs.columns:
+        err_msg = f"celltype_label ({celltype_label}) not found in adata.obs"
+        logging.error(err_msg)
+        raise ValueError(err_msg)
+
+    # Check if n_components is less than number of cells and genes
+    if n_components >= min(adata.X.shape):
+        err_msg = f"n_components ({n_components}) should be less than number of cells ({adata.n_obs}) and genes ({adata.n_vars})"
+        logging.error(err_msg)
+        raise ValueError(err_msg)
+
+    # Check if precomputed is in adata.obsm
+    if precomputed is not None and precomputed not in adata.obsm.keys():
+        err_msg = f"precomputed components ({precomputed}) not found in adata.obsm"
+        logging.error(err_msg)
+        raise ValueError(err_msg)
 
 
 def process_gex(
@@ -263,13 +318,22 @@ def main():
     adata = sc.read_h5ad(args.adata)
     adata.layers["X_raw"] = adata.X.copy()
 
+    # validate parameters
+    validate_parameters(
+        adata,
+        args.n_min,
+        args.n_max,
+        args.n_neighbors,
+        args.celltype_label,
+        args.n_components,
+        args.precomputed,
+    )
+
     # preprocess data
     logging.info("Preprocessing data of type: %s", args.type)
     if args.precomputed:
         components_key = args.precomputed
         adata_processed = adata.copy()
-        if components_key not in adata.obsm.keys():
-            raise ValueError("Invalid precomputed key")
     elif args.type == "gex":
         adata_processed = process_gex(adata, args.n_top_genes, args.n_components)
         components_key = "X_pca"
