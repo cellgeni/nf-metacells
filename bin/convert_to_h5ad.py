@@ -55,11 +55,13 @@ def check_10x_mtx_files(directory: str) -> bool:
     """
     Check if the directory contains the required 10x mtx files
     """
-    mtx_exists = os.path.isfile(os.path.join(directory, "matrix.mtx"))
-    barcodes_exists = os.path.isfile(os.path.join(directory, "barcodes.tsv"))
-    features_exists = os.path.isfile(os.path.join(directory, "features.tsv"))
-
-    return mtx_exists and barcodes_exists and features_exists
+    required_files = ["matrix.mtx", "barcodes.tsv", "features.tsv"]
+    for file in required_files:
+        filepath = os.path.join(directory, file)
+        if not os.path.isfile(filepath) and not os.path.isfile(filepath + ".gz"):
+            logging.error(f"Missing required file: {file}")
+            return False
+    return True
 
 
 def main() -> None:
