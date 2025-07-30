@@ -18,7 +18,7 @@ def helpMessage() {
 
         Optional options:
         --help                          Show this help message
-        --outdir                        Output directory for the aggregated files
+        --output_dir                        Output directory for the aggregated files
         --raw                           Convert raw files to H5AD format (if raw files' paths are provided)
         --delimiter                     Specify delimiter if you want to add sample id to the barcode names
         --cell_metadata                 Specify metadata.csv file to attach to the .obs section of AnnData object
