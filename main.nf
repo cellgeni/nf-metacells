@@ -48,7 +48,7 @@ def helpMessage() {
             
     Examples:
         1. Perform metacell aggregation using SEACells
-            nextflow run main.nf --filelist filelist.csv --seacells.enabled --seacells.gamma 75 --seacells.type gex
+            nextflow run main.nf --filelist filelist.csv --type gex --seacells.enabled --seacells.gamma 75
 
     == filelist.csv format ==
     item,filepath
