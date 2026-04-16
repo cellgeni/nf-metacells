@@ -1,34 +1,23 @@
 process HierarchialAggregate {
-    tag "Running hierarchial clustering for ${sample}"
+    tag "Running hierarchial clustering for ${meta.id}"
+    container 'quay.io/cellgeni/metacells-python:latest'
+    
     input:
-        tuple val(sample), path(adata)
-        val(n_min)
-        val(n_max)
-        val(type)
-        val(n_top_genes)
-        val(n_components)
-        val(celltype_label)
-        val(n_neighbors)
-        val(precomputed)
-        val(method)
-        val(delimiter)
+    tuple val(meta), path(adata)
+    val celltype_label
+
     output:
-        path("hierarchial_metacells.csv")
+    path("hierarchial_metacells.csv")
+    
     script:
-        """
-        hierarchial_metacells.py \
-            --adata ${adata} \
-            --sample ${sample} \
-            --celltype_label ${celltype_label} \
-            --method ${method} \
-            --output hierarchial_metacells.csv \
-            --n_min ${n_min} \
-            --n_max ${n_max} \
-            --type ${type} \
-            --n_top_genes ${n_top_genes} \
-            --n_components ${n_components} \
-            --n_neighbors ${n_neighbors} \
-            ${precomputed ? "--precomputed ${precomputed}" : ""} \
-            ${delimiter ? "--delimiter ${delimiter}" : ""}
-        """
+    def args = task.ext.args ?: "--n_min 5 --n_max 20 --method ward --n_top_genes 2000 --n_components 50 --n_neighbors 15"
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    hierarchial_metacells.py \
+        ${args} \
+        --adata ${adata} \
+        --sample ${prefix} \
+        --celltype_label ${celltype_label} \
+        --output hierarchial_metacells.csv 
+    """
 }
