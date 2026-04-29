@@ -1,6 +1,6 @@
 // INCLUDE MODULES
 include { SEACELLS } from './modules/cellgeni/seacells'
-include { HierarchialAggregate } from './modules/hierarchial'
+include { HMETACELLS } from './modules/cellgeni/hmetacells'
 include { ToH5ad; AttachCellMetadata } from './modules/utils'
 
 // HELP MESSAGE
@@ -77,7 +77,7 @@ workflow  {
     }
 
     // Read the files from the filelist
-    files = Channel.fromPath(params.filelist, checkIfExists: true)
+    files = channel.fromPath(params.filelist, checkIfExists: true)
                     .splitCsv(header: true, sep: ',')
                     .map { row -> tuple([id: row.id], row.path) }
     
@@ -140,12 +140,7 @@ workflow  {
             System.exit(1)
         } else {
             // Run Hierarchial clustering
-            HierarchialAggregate(
-                files,
-                params.hierarchial.n_min,
-                params.hierarchial.n_max,
-                params.celltype_label
-            )
+            HMETACELLS(files)
         }
     }
 
