@@ -6,45 +6,95 @@
 $schema: https://raw.githubusercontent.com/nextflow-io/schemas/refs/heads/main/module/v1/schema.json
 name: cellgeni/seacells
 version: 1.0.0
-description: SEACells aggregates single-cell profiles into metacells (cellular states)
-  from scRNA-seq or scATAC-seq data.
+description: SEACells aggregates single-cell profiles into metacells from scRNA-seq or scATAC-seq data.
+keywords:
+- metacells
+- single-cell
+- scRNA-seq
+- scATAC-seq
+- aggregation
 license: MIT
+tools:
+- seacells:
+    description: SEACells learns archetypal cellular states and aggregates cells into metacells.
+    homepage: https://github.com/dpeerlab/SEACells
+    documentation: https://seacells.readthedocs.io/
+    license:
+    - BSD-3-Clause
+    identifier: biotools:SEACells
 input:
 - - name: meta
     type: map
-    description: Sample metadata map (must include an `id` key used for tagging/prefixing
-      outputs).
+    description: |
+      Groovy Map containing sample information
+      e.g. [ id:'test' ]
   - name: adata
     type: file
-    description: Input AnnData object (`.h5ad`) containing a single sample and the
-      required matrix/embeddings.
+    description: AnnData object in h5ad format
+    pattern: '*.{h5ad}'
+    ontologies:
+    - edam: http://edamontology.org/format_3590
 output:
 - - name: meta
     type: map
-    description: The same metadata map received as input.
-  - type: file
-    description: Output AnnData metacell object(s) (`*.h5ad`; typically includes `seacell_metacells.h5ad`).
+    description: |
+      Groovy Map containing sample information
+      e.g. [ id:'test' ]
+  - name: '*.h5ad'
+    type: file
+    description: Metacell-level AnnData object
+    pattern: '*.h5ad'
+    ontologies:
+    - edam: http://edamontology.org/format_3590
 - - name: meta
     type: map
-    description: The same metadata map received as input.
-  - type: file
-    description: CSV result tables (`*.csv`; includes hard/soft metacell assignments).
+    description: |
+      Groovy Map containing sample information
+      e.g. [ id:'test' ]
+  - name: '*.csv'
+    type: file
+    description: CSV files with hard and soft metacell assignments
+    pattern: '*.csv'
+    ontologies:
+    - edam: http://edamontology.org/format_3752
 - - name: meta
     type: map
-    description: The same metadata map received as input.
-  - type: file
-    description: Numpy arrays (`*.npy`; includes SEACells assignment weights).
+    description: |
+      Groovy Map containing sample information
+      e.g. [ id:'test' ]
+  - name: '*.npy'
+    type: file
+    description: Numpy arrays containing SEACells assignment matrices
+    pattern: '*.npy'
+    ontologies: []
 - - name: meta
     type: map
-    description: The same metadata map received as input.
-  - type: file
-    description: PDF diagnostics (`*.pdf`; convergence, assignment, and metacell QC
-      plots).
+    description: |
+      Groovy Map containing sample information
+      e.g. [ id:'test' ]
+  - name: '*.pdf'
+    type: file
+    description: Diagnostic plots for convergence and metacell quality control
+    pattern: '*.pdf'
+    ontologies:
+    - edam: http://edamontology.org/format_3508
 - - name: meta
     type: map
-    description: The same metadata map received as input.
-  - type: file
-    description: Pickled SEACells model object(s) (`*.pkl`).
+    description: |
+      Groovy Map containing sample information
+      e.g. [ id:'test' ]
+  - name: '*.pkl'
+    type: file
+    description: Serialized SEACells model
+    pattern: '*.pkl'
+    ontologies: []
 - name: versions
   type: file
-  description: YAML file containing software versions used in the module execution.
+  description: YAML file containing software versions used
+  pattern: versions.yml
+  ontologies:
+  - edam: http://edamontology.org/format_3750
+authors:
+- '@claptar'
+maintainers:
+- '@claptar'
