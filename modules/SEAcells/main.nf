@@ -1,6 +1,7 @@
 // The module that contains the processes to run SEAcells metacells aggregation
 process SEACellsAggregate {
     tag "Running SEAcells metacells aggregation for ${sample}"
+    container 'quay.io/cellgeni/seacells:latest'
     input:
         tuple val(sample), path(adata)
         val(n_cells)
