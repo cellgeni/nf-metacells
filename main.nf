@@ -1,5 +1,5 @@
 // INCLUDE MODULES
-include { SEACellsAggregate } from './modules/SEAcells'
+include { SEACELLS } from './modules/cellgeni/seacells'
 include { HierarchialAggregate } from './modules/hierarchial'
 include { ToH5ad; AttachCellMetadata } from './modules/utils'
 
@@ -79,7 +79,7 @@ workflow  {
     // Read the files from the filelist
     files = Channel.fromPath(params.filelist, checkIfExists: true)
                     .splitCsv(header: true, sep: ',')
-                    .map { row -> tuple(row.item, row.filepath) }
+                    .map { row -> tuple([id: row.id], row.path) }
     
 
     // Convert raw files to H5AD if needed
@@ -125,20 +125,8 @@ workflow  {
             System.exit(1)
         } else {
             // Run SEACells
-            SEACellsAggregate(
-                files,
-                params.seacells.n_cells ? params.seacells.n_cells : "",
-                params.seacells.gamma ? params.seacells.gamma : "",
-                params.type,
-                params.seacells.n_top_genes,
-                params.seacells.n_components,
-                params.celltype_label ? params.celltype_label : "",
-                params.seacells.convergence_epsilon,
-                params.seacells.min_iterations,
-                params.seacells.max_iterations,
-                params.seacells.use_sparse,
-                params.seacells.precomputed ? params.hierarchial.precomputed : "",
-                delimiter ? delimiter : ""
+            SEACELLS(
+                files
             )
         }
     }
@@ -156,14 +144,7 @@ workflow  {
                 files,
                 params.hierarchial.n_min,
                 params.hierarchial.n_max,
-                params.type,
-                params.hierarchial.n_top_genes,
-                params.hierarchial.n_components,
-                params.celltype_label,
-                params.hierarchial.n_neighbors,
-                params.hierarchial.precomputed ? params.hierarchial.precomputed : "",
-                params.hierarchial.method,
-                delimiter ? delimiter : ""
+                params.celltype_label
             )
         }
     }

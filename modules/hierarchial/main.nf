@@ -4,6 +4,8 @@ process HierarchialAggregate {
     
     input:
     tuple val(meta), path(adata)
+    val n_min
+    val n_max
     val celltype_label
 
     output:
@@ -17,6 +19,8 @@ process HierarchialAggregate {
         ${args} \
         --adata ${adata} \
         --sample ${prefix} \
+        --n_min ${n_min} \
+        --n_max ${n_max} \
         --celltype_label ${celltype_label} \
         --output hierarchial_metacells.csv 
     """
