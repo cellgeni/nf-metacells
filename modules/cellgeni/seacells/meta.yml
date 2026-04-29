@@ -5,7 +5,7 @@
 
 $schema: https://raw.githubusercontent.com/nextflow-io/schemas/refs/heads/main/module/v1/schema.json
 name: cellgeni/seacells
-version: 0.0.1
+version: 1.0.0
 description: SEACells aggregates single-cell profiles into metacells (cellular states)
   from scRNA-seq or scATAC-seq data.
 license: MIT
