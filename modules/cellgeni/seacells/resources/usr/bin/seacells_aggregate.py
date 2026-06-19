@@ -294,13 +294,18 @@ def fit_seacells_model(
     """
     logging.info("Fitting SEACells model")
 
-    # Palantir's waypoint sampler allocates int(n_metacells / n_waypoint_eigs)
-    # columns internally. If n_waypoint_eigs > n_metacells this becomes zero and
-    # SEACells crashes during initialize_archetypes on small samples.
-    effective_n_waypoint_eigs = min(n_waypoint_eigs, n_metacells)
+    # Palantir's waypoint sampler works on diffusion components returned by
+    # determine_multiscale_space(). With the Palantir version bundled in this
+    # image, n_eigs=1 yields zero diffusion components and crashes with
+    # ZeroDivisionError. Conversely, too many diffusion components relative to
+    # num_waypoints gives int(num_waypoints / n_components) == 0 and crashes
+    # with IndexError. Keep the effective value in the safe range:
+    #     2 <= n_waypoint_eigs <= n_metacells + 1
+    effective_n_waypoint_eigs = min(n_waypoint_eigs, n_metacells + 1)
+    effective_n_waypoint_eigs = max(2, effective_n_waypoint_eigs)
     if effective_n_waypoint_eigs != n_waypoint_eigs:
         logging.warning(
-            "Reducing n_waypoint_eigs from %s to %s because n_metacells=%s",
+            "Changing n_waypoint_eigs from %s to %s because n_metacells=%s",
             n_waypoint_eigs,
             effective_n_waypoint_eigs,
             n_metacells,
@@ -339,14 +344,18 @@ def plot_assignments(model: SEACells.core.SEACells, output_dir: str):
     # create plots
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 15), gridspec_kw={"wspace": 0.3})
 
+    assignment_weights = model.A_.T
+    if hasattr(assignment_weights, "toarray"):
+        assignment_weights = assignment_weights.toarray()
+    assignment_weights = np.asarray(assignment_weights)
+
     # non-trivial assignments
-    sns.histplot((model.A_.T > 0.1).sum(axis=1), kde=False, ax=ax1)
+    sns.histplot((assignment_weights > 0.1).sum(axis=1), kde=False, ax=ax1)
     ax1.set_title("Non-trivial (> 0.1) assignments per cell")
     ax1.set_xlabel("# Non-trivial SEACell Assignments")
     ax1.set_ylabel("# Cells")
 
     # weights
-    assignment_weights = model.A_.T
     top_n = min(5, assignment_weights.shape[1])
     b = np.partition(assignment_weights, -top_n, axis=1)
     sns.heatmap(np.sort(b[:, -top_n:], axis=1)[:, ::-1], cmap="viridis", vmin=0, ax=ax2)
@@ -355,6 +364,39 @@ def plot_assignments(model: SEACells.core.SEACells, output_dir: str):
     fig.savefig(os.path.join(output_dir, "assignments.pdf"))
     plt.close(fig)
     logging.info("Completed plotting assignments")
+
+
+def get_soft_assignments(model: SEACells.core.SEACells, max_assignments: int = 5):
+    """Compute top soft assignments without assuming at least five metacells.
+
+    SEACells.get_soft_assignments() always asks for five assignments. For
+    samples with fewer than five metacells it repeats exhausted columns and can
+    emit -1 weights. This helper returns min(5, n_metacells) valid assignments.
+    """
+    assignment_weights = model.A_.T
+    if hasattr(assignment_weights, "toarray"):
+        assignment_weights = assignment_weights.toarray()
+    assignment_weights = np.asarray(assignment_weights)
+
+    if assignment_weights.ndim != 2 or assignment_weights.shape[1] < 1:
+        raise ValueError(
+            f"Invalid SEACells assignment matrix shape: {assignment_weights.shape}"
+        )
+
+    top_n = min(max_assignments, assignment_weights.shape[1])
+    order = np.argsort(-assignment_weights, axis=1)[:, :top_n]
+    weights = np.take_along_axis(assignment_weights, order, axis=1)
+
+    try:
+        archetype_labels = np.asarray(model.get_hard_archetypes())
+    except Exception:
+        archetype_labels = np.asarray(
+            [f"SEACell-{i}" for i in range(assignment_weights.shape[1])]
+        )
+    labels = archetype_labels[order]
+
+    soft_labels = pd.DataFrame(labels, index=model.ad.obs_names)
+    return soft_labels, weights
 
 
 def compute_celltype_purity(adata: sc.AnnData, celltype_label: str) -> pd.DataFrame:
@@ -582,7 +624,7 @@ def main():
     )
 
     logging.info("Make soft assignments")
-    soft_labels, weights = model.get_soft_assignments()
+    soft_labels, weights = get_soft_assignments(model)
 
     # save results before optional QC plots so a completed fit is retained even
     # if a plotting/evaluation metric is unavailable for a sample.
