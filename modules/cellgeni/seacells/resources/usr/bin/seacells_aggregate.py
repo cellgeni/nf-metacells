@@ -19,6 +19,36 @@ logging.basicConfig(
 )
 
 
+def _axis_sum(matrix, axis: int) -> np.ndarray:
+    """Return matrix sums as a 1D ndarray for dense, sparse and matrix inputs."""
+    summed = matrix.sum(axis=axis)
+    if hasattr(summed, "A1"):
+        return summed.A1
+    return np.asarray(summed).ravel()
+
+
+def _safe_n_components(requested: int, n_obs: int, n_vars: int, label: str) -> int:
+    """Cap PCA/LSI dimensionality to a value supported by the input shape."""
+    max_components = min(n_obs, n_vars) - 1
+    if max_components < 1:
+        raise ValueError(
+            f"Cannot compute {label}: need at least 2 observations and 2 features, "
+            f"got n_obs={n_obs}, n_vars={n_vars}"
+        )
+    effective = min(requested, max_components)
+    if effective != requested:
+        logging.warning(
+            "Reducing %s components from %s to %s for data with n_obs=%s and n_vars=%s",
+            label,
+            requested,
+            effective,
+            n_obs,
+            n_vars,
+        )
+    return effective
+
+
+
 def init_parser() -> argparse.ArgumentParser:
     """
     Initialise argument parser for the script
@@ -155,8 +185,16 @@ def process_gex(
 
     # find highly variable genes
     sc.pp.highly_variable_genes(adata, n_top_genes=n_top_genes)
+    n_highly_variable = int(adata.var["highly_variable"].sum())
+    if n_highly_variable < 2:
+        raise ValueError(
+            f"Cannot compute PCA: only {n_highly_variable} highly variable genes selected"
+        )
 
     # compute PCA
+    n_components = _safe_n_components(
+        n_components, adata.n_obs, n_highly_variable, "PCA"
+    )
     sc.tl.pca(adata, n_comps=n_components, use_highly_variable=True)
     logging.info("Completed GEX data preprocessing")
     return adata
@@ -171,10 +209,27 @@ def process_atac(adata: sc.AnnData, n_components: int = 50) -> sc.AnnData:
         sc.AnnData: Preprocessed AnnData object
     """
     logging.info("Starting ATAC data preprocessing")
+
+    # muon.atac.pp.tfidf divides by per-feature counts; all-zero peaks create
+    # infinite IDF values and noisy RuntimeWarnings, so remove them first.
+    feature_counts = _axis_sum(adata.X, axis=0)
+    keep_features = np.isfinite(feature_counts) & (feature_counts > 0)
+    if not np.all(keep_features):
+        logging.warning(
+            "Removing %s ATAC features with zero or non-finite total counts before TF-IDF",
+            int((~keep_features).sum()),
+        )
+        adata = adata[:, keep_features].copy()
+    if adata.n_vars < 2:
+        raise ValueError(
+            f"Cannot compute LSI: only {adata.n_vars} non-zero ATAC features remain"
+        )
+
     # compute TF-IDF
     muon.atac.pp.tfidf(adata, scale_factor=1e4)
 
     # compute LSI
+    n_components = _safe_n_components(n_components, adata.n_obs, adata.n_vars, "LSI")
     muon.atac.tl.lsi(adata, n_comps=n_components)
     logging.info("Completed ATAC data preprocessing")
     return adata
@@ -199,10 +254,19 @@ def get_metacell_number(
         )
     if n_metacells is None and gamma is None:
         raise ValueError("Either n_metacells or gamma should be specified")
-    if n_metacells is not None:
-        return n_metacells
-    else:
-        return round(adata.n_obs / gamma)
+    if gamma is not None and gamma <= 0:
+        raise ValueError("gamma must be a positive integer")
+
+    if n_metacells is None:
+        n_metacells = max(1, round(adata.n_obs / gamma))
+
+    if n_metacells < 1:
+        raise ValueError("n_metacells must be at least 1")
+    if n_metacells > adata.n_obs:
+        raise ValueError(
+            f"n_metacells ({n_metacells}) cannot exceed the number of cells ({adata.n_obs})"
+        )
+    return int(n_metacells)
 
 
 def fit_seacells_model(
@@ -229,12 +293,25 @@ def fit_seacells_model(
         SEACells.core.SEACells: SEACells model
     """
     logging.info("Fitting SEACells model")
+
+    # Palantir's waypoint sampler allocates int(n_metacells / n_waypoint_eigs)
+    # columns internally. If n_waypoint_eigs > n_metacells this becomes zero and
+    # SEACells crashes during initialize_archetypes on small samples.
+    effective_n_waypoint_eigs = min(n_waypoint_eigs, n_metacells)
+    if effective_n_waypoint_eigs != n_waypoint_eigs:
+        logging.warning(
+            "Reducing n_waypoint_eigs from %s to %s because n_metacells=%s",
+            n_waypoint_eigs,
+            effective_n_waypoint_eigs,
+            n_metacells,
+        )
+
     # create a model
     model = SEACells.core.SEACells(
         adata,
         build_kernel_on=components_key,
         n_SEACells=n_metacells,
-        n_waypoint_eigs=n_waypoint_eigs,
+        n_waypoint_eigs=effective_n_waypoint_eigs,
         convergence_epsilon=convergence_epsilon,
         use_sparse=use_sparse,
     )
@@ -263,18 +340,60 @@ def plot_assignments(model: SEACells.core.SEACells, output_dir: str):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 15), gridspec_kw={"wspace": 0.3})
 
     # non-trivial assignments
-    sns.displot((model.A_.T > 0.1).sum(axis=1), kde=False, ax=ax1)
+    sns.histplot((model.A_.T > 0.1).sum(axis=1), kde=False, ax=ax1)
     ax1.set_title("Non-trivial (> 0.1) assignments per cell")
     ax1.set_xlabel("# Non-trivial SEACell Assignments")
     ax1.set_ylabel("# Cells")
 
     # weights
-    b = np.partition(model.A_.T, -5)
-    sns.heatmap(np.sort(b[:, -5:])[:, ::-1], cmap="viridis", vmin=0, ax=ax2)
-    ax2.set_title("Strength of top 5 strongest assignments")
+    assignment_weights = model.A_.T
+    top_n = min(5, assignment_weights.shape[1])
+    b = np.partition(assignment_weights, -top_n, axis=1)
+    sns.heatmap(np.sort(b[:, -top_n:], axis=1)[:, ::-1], cmap="viridis", vmin=0, ax=ax2)
+    ax2.set_title(f"Strength of top {top_n} strongest assignments")
     ax2.set_xlabel("$n^{th}$ strongest assignment")
-    plt.savefig(os.path.join(output_dir, "assignments.pdf"))
+    fig.savefig(os.path.join(output_dir, "assignments.pdf"))
+    plt.close(fig)
     logging.info("Completed plotting assignments")
+
+
+def compute_celltype_purity(adata: sc.AnnData, celltype_label: str) -> pd.DataFrame:
+    """Compute SEACell purity while tolerating missing labels.
+
+    SEACells.evaluate.compute_celltype_purity assumes every SEACell has at least
+    one non-missing label. Real annotations can contain all-missing metacells; in
+    that case the purity is undefined and is reported as NaN instead of raising.
+    """
+    rows = []
+    for seacell, labels in adata.obs.groupby("SEACell", observed=True)[celltype_label]:
+        counts = labels.dropna().value_counts()
+        counts = counts[counts > 0]
+        if counts.empty:
+            rows.append(
+                {
+                    "SEACell": seacell,
+                    celltype_label: pd.NA,
+                    f"{celltype_label}_purity": np.nan,
+                }
+            )
+        else:
+            rows.append(
+                {
+                    "SEACell": seacell,
+                    celltype_label: counts.index[0],
+                    f"{celltype_label}_purity": counts.iloc[0] / counts.sum(),
+                }
+            )
+
+    return pd.DataFrame(rows).set_index("SEACell")
+
+
+def _mark_axis_unavailable(ax, title: str, reason: str):
+    """Render a placeholder panel for QC metrics that cannot be computed."""
+    ax.set_title(title)
+    ax.text(0.5, 0.5, reason, ha="center", va="center", transform=ax.transAxes)
+    ax.set_xticks([])
+    ax.set_yticks([])
 
 
 def plot_metacell_stats(
@@ -299,30 +418,54 @@ def plot_metacell_stats(
 
     # metacell sizes
     label_df = adata.obs[["SEACell"]].reset_index()
-    sns.histplot(label_df.groupby("SEACell").count().iloc[:, 0], ax=ax1)
+    sns.histplot(label_df.groupby("SEACell", observed=True).count().iloc[:, 0], ax=ax1)
     ax1.set_title("Metacell Sizes")
     ax1.set_xlabel("# Cells per Metacell")
 
     # compactness
-    compactness = SEACells.evaluate.compactness(adata, components_key)
-    sns.boxplot(data=compactness, y="compactness", ax=ax2)
-    ax2.set_title("Compactness")
+    try:
+        compactness = SEACells.evaluate.compactness(adata, components_key)
+        sns.boxplot(data=compactness, y="compactness", ax=ax2)
+        ax2.set_title("Compactness")
+    except Exception as exc:  # QC should not invalidate completed assignments
+        logging.warning("Skipping compactness plot: %s", exc)
+        _mark_axis_unavailable(ax2, "Compactness", "unavailable")
 
     # separation
-    separation = SEACells.evaluate.separation(adata, components_key, nth_nbr=1)
-    sns.boxplot(data=separation, y="separation", ax=ax3)
-    ax3.set_title("Separation")
+    try:
+        separation = SEACells.evaluate.separation(adata, components_key, nth_nbr=1)
+        sns.boxplot(data=separation, y="separation", ax=ax3)
+        ax3.set_title("Separation")
+    except Exception as exc:  # QC should not invalidate completed assignments
+        logging.warning("Skipping separation plot: %s", exc)
+        _mark_axis_unavailable(ax3, "Separation", "unavailable")
 
     # purity
     if celltype_label:
-        purity = SEACells.evaluate.compute_celltype_purity(adata, "celltype")
-        sns.boxplot(data=purity, y="celltype_purity", ax=ax4)
-        ax4.set_title("Celltype Purity")
+        if celltype_label not in adata.obs.columns:
+            logging.warning(
+                "Skipping celltype purity plot: %s not found in adata.obs",
+                celltype_label,
+            )
+            _mark_axis_unavailable(ax4, "Celltype Purity", "label not found")
+        else:
+            purity = compute_celltype_purity(adata, celltype_label)
+            purity_col = f"{celltype_label}_purity"
+            if purity[purity_col].dropna().empty:
+                logging.warning(
+                    "Skipping celltype purity plot: no non-missing labels found for %s",
+                    celltype_label,
+                )
+                _mark_axis_unavailable(ax4, "Celltype Purity", "no labels")
+            else:
+                sns.boxplot(data=purity, y=purity_col, ax=ax4)
+                ax4.set_title(f"{celltype_label} Purity")
     else:
         ax4.remove()
 
     # save plots
-    plt.savefig(os.path.join(output_dir, "metacell_stats.pdf"))
+    fig.savefig(os.path.join(output_dir, "metacell_stats.pdf"))
+    plt.close(fig)
     logging.info("Completed plotting metacell stats")
 
 
@@ -344,17 +487,27 @@ def evaluate_results(
     """
     logging.info("Evaluating results")
     # plot convergence
-    model.plot_convergence(
-        save_as=os.path.join(output_dir, "convergence.pdf"), show=False
-    )
+    try:
+        model.plot_convergence(
+            save_as=os.path.join(output_dir, "convergence.pdf"), show=False
+        )
+        plt.close("all")
+    except Exception as exc:  # QC should not invalidate completed assignments
+        logging.warning("Skipping convergence plot: %s", exc)
 
     # plot soft assignments
-    plot_assignments(model, output_dir)
+    try:
+        plot_assignments(model, output_dir)
+    except Exception as exc:  # QC should not invalidate completed assignments
+        logging.warning("Skipping assignments plot: %s", exc)
 
     # plot metacell stats
-    plot_metacell_stats(
-        adata, output_dir, components_key=components_key, celltype_label=celltype_label
-    )
+    try:
+        plot_metacell_stats(
+            adata, output_dir, components_key=components_key, celltype_label=celltype_label
+        )
+    except Exception as exc:  # QC should not invalidate completed assignments
+        logging.warning("Skipping metacell stats plot: %s", exc)
     logging.info("Completed evaluating results")
 
 
@@ -431,17 +584,10 @@ def main():
     logging.info("Make soft assignments")
     soft_labels, weights = model.get_soft_assignments()
 
-    # evaluate results
-    evaluate_results(
-        adata_processed,
-        model,
-        args.output_dir,
-        components_key=components_key,
-        celltype_label=args.celltype_label,
-    )
-
-    # save results
+    # save results before optional QC plots so a completed fit is retained even
+    # if a plotting/evaluation metric is unavailable for a sample.
     logging.info("Saving results")
+    os.makedirs(args.output_dir, exist_ok=True)
     adata_processed.write_h5ad(os.path.join(args.output_dir, "seacell_metacells.h5ad"))
     hard_labels.to_csv(
         os.path.join(args.output_dir, "seacell_metacell_assignments.csv")
@@ -451,6 +597,15 @@ def main():
     with open(os.path.join(args.output_dir, "seacell_model.pkl"), "wb") as file:
         pickle.dump(model, file)
     logging.info("Successfully saved results")
+
+    # evaluate results
+    evaluate_results(
+        adata_processed,
+        model,
+        args.output_dir,
+        components_key=components_key,
+        celltype_label=args.celltype_label,
+    )
 
 
 if __name__ == "__main__":
