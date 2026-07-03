@@ -48,6 +48,104 @@ def _safe_n_components(requested: int, n_obs: int, n_vars: int, label: str) -> i
     return effective
 
 
+def _positive_neighbor_counts(data: np.ndarray, n_neighbors: int) -> np.ndarray:
+    """Return non-zero distance counts in Scanpy's neighbour graph.
+
+    Palantir's bundled diffusion-map code indexes the 10th non-zero neighbour
+    distance from this exact graph. Rows with too few non-zero distances occur
+    when many cells have identical low-dimensional coordinates; scipy sparse
+    matrices do not store zero-distance neighbour edges.
+    """
+    temp = sc.AnnData(data)
+    sc.pp.neighbors(temp, n_pcs=0, n_neighbors=n_neighbors)
+    distances = temp.obsp["distances"].tocsr()
+    return np.diff(distances.indptr)
+
+
+def stabilize_embedding_for_neighbors(
+    adata: sc.AnnData,
+    components_key: str,
+    seacells_n_neighbors: int = 15,
+    palantir_knn: int = 30,
+    random_seed: int = 0,
+) -> sc.AnnData:
+    """Break exact embedding ties that make SEACells/Palantir kNN rows empty.
+
+    SEACells and the Palantir version pinned in the image both derive adaptive
+    bandwidths from non-zero entries in a sparse kNN distance matrix. If many
+    cells have identical PCA/LSI coordinates, their nearest-neighbour distances
+    are exactly zero and are dropped by the sparse matrix. Palantir then raises
+    `IndexError: index 9 is out of bounds ... size 0`, while SEACells can build
+    zero radii and emit divide-by-zero warnings.
+
+    The biological information in exactly tied coordinates is indistinguishable
+    to these graph builders, so a tiny deterministic jitter is used only when a
+    preflight Scanpy neighbour graph shows too few positive distances.
+    """
+    if components_key not in adata.obsm:
+        raise ValueError(f"{components_key!r} not found in adata.obsm")
+
+    embedding = np.asarray(adata.obsm[components_key])
+    if embedding.ndim != 2:
+        raise ValueError(
+            f"{components_key!r} must be a 2D embedding, got shape {embedding.shape}"
+        )
+    if not np.all(np.isfinite(embedding)):
+        bad_values = int((~np.isfinite(embedding)).sum())
+        raise ValueError(
+            f"{components_key!r} contains {bad_values} non-finite values; "
+            "cannot construct SEACells neighbour graph"
+        )
+
+    if adata.n_obs <= 2:
+        return adata
+
+    n_neighbors = min(palantir_knn, adata.n_obs - 1)
+    if n_neighbors < 2:
+        return adata
+
+    # Palantir uses adaptive_k=floor(knn/3), with knn=30 by default, and
+    # SEACells uses k//2 for its default k=15. Require enough positive sparse
+    # distances for both code paths.
+    required_positive = max(
+        1,
+        min(n_neighbors, palantir_knn // 3),
+        min(n_neighbors, seacells_n_neighbors // 2),
+    )
+
+    positive_counts = _positive_neighbor_counts(embedding, n_neighbors)
+    too_few = positive_counts < required_positive
+    if not np.any(too_few):
+        return adata
+
+    finite_values = embedding[np.isfinite(embedding)]
+    nonzero_std = np.std(embedding, axis=0)
+    nonzero_std = nonzero_std[np.isfinite(nonzero_std) & (nonzero_std > 0)]
+    if nonzero_std.size:
+        scale = float(np.median(nonzero_std))
+    elif finite_values.size and np.nanmax(np.abs(finite_values)) > 0:
+        scale = float(np.nanmax(np.abs(finite_values)))
+    else:
+        scale = 1.0
+
+    jitter_scale = max(scale * 1e-6, np.finfo(float).eps)
+    rng = np.random.RandomState(random_seed)
+    jittered = embedding.astype(np.float64, copy=True)
+    jittered += rng.normal(loc=0.0, scale=jitter_scale, size=jittered.shape)
+    adata.obsm[components_key] = jittered
+
+    logging.warning(
+        "Added deterministic jitter with scale %.3g to %s because %s/%s cells "
+        "had fewer than %s positive neighbour distances; this avoids empty "
+        "kNN rows in SEACells/Palantir waypoint initialisation",
+        jitter_scale,
+        components_key,
+        int(too_few.sum()),
+        adata.n_obs,
+        required_positive,
+    )
+    return adata
+
 
 def init_parser() -> argparse.ArgumentParser:
     """
@@ -293,6 +391,11 @@ def fit_seacells_model(
         SEACells.core.SEACells: SEACells model
     """
     logging.info("Fitting SEACells model")
+
+    # Break exact PCA/LSI ties before SEACells constructs its kernel or Palantir
+    # computes waypoint diffusion maps. Without this, rows whose neighbours all
+    # have zero distance can disappear from sparse distance graphs.
+    adata = stabilize_embedding_for_neighbors(adata, components_key)
 
     # Palantir's waypoint sampler works on diffusion components returned by
     # determine_multiscale_space(). With the Palantir version bundled in this
@@ -546,7 +649,10 @@ def evaluate_results(
     # plot metacell stats
     try:
         plot_metacell_stats(
-            adata, output_dir, components_key=components_key, celltype_label=celltype_label
+            adata,
+            output_dir,
+            components_key=components_key,
+            celltype_label=celltype_label,
         )
     except Exception as exc:  # QC should not invalidate completed assignments
         logging.warning("Skipping metacell stats plot: %s", exc)
