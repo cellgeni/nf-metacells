@@ -4,8 +4,9 @@
 #   adata_attachobs.sh --adata IN --output OUT --sample-id ID [--metadata CSV] [--barcode-column obs_names|COL]
 #                      [--join inner|left] [--delimiter STR] [--sample-column NAME] [--allow-dtype-change]
 #
-# Metadata CSV: columns `barcode` and `sample_id` plus any annotations. Rows are filtered to --sample-id and joined
-# on --barcode-column (default: obs_names). An inner join drops cells without metadata; a left join keeps them.
+# Metadata CSV: a `barcode` column plus any annotations. With a `sample_id` column, only the rows of --sample-id are
+# used; without one, every row is. Rows are joined on --barcode-column (default: obs_names). An inner join drops
+# cells without metadata; a left join keeps them.
 # Metadata columns that already exist in obs are attached with a `_metadata` suffix.
 # --delimiter renames obs_names to <barcode><delimiter><sample-id> (the join always uses the original names) and
 # keeps the original names in a `barcode` column (`barcode_original` if obs already has `barcode`).
@@ -96,8 +97,13 @@ if [[ -n "$METADATA" ]]; then
     sql "CREATE TABLE meta_all AS SELECT * FROM read_csv($(sql_str "$METADATA"), header = true, all_varchar = true);"
     mapfile -t META_COLUMNS < <(sql "SELECT column_name FROM (DESCRIBE meta_all);")
     printf '%s\n' "${META_COLUMNS[@]}" | grep -qx barcode || die "metadata must have a 'barcode' column"
-    printf '%s\n' "${META_COLUMNS[@]}" | grep -qx sample_id || die "metadata must have a 'sample_id' column"
-    sql "CREATE TABLE m AS SELECT * FROM meta_all WHERE sample_id = $(sql_str "$SAMPLE_ID");"
+    if printf '%s\n' "${META_COLUMNS[@]}" | grep -qx sample_id; then
+        sql "CREATE TABLE m AS SELECT * FROM meta_all WHERE sample_id = $(sql_str "$SAMPLE_ID");"
+        ROWS="rows for sample '$SAMPLE_ID'"
+    else
+        sql "CREATE TABLE m AS SELECT * FROM meta_all;"
+        ROWS="rows (no sample_id column, all used)"
+    fi
 
     N_META=$(sql "SELECT count(*) FROM m;")
     [[ "$N_META" -gt 0 ]] || die "no metadata rows with sample_id '$SAMPLE_ID'"
@@ -115,7 +121,7 @@ if [[ -n "$METADATA" ]]; then
     done
 
     N_MATCHED=$(sql "SELECT count(*) FROM o JOIN m ON o.$KEY = m.barcode;")
-    echo "Metadata: $N_META rows for sample '$SAMPLE_ID'; $N_MATCHED of $N_OBS cells matched; join=$JOIN" >&2
+    echo "Metadata: $N_META $ROWS; $N_MATCHED of $N_OBS cells matched; join=$JOIN" >&2
     [[ "$N_MATCHED" -gt 0 ]] || die "no cell matched the metadata (obs '${BARCODE_COLUMN}' vs metadata 'barcode')"
     if (( N_META > N_MATCHED )); then warn "$(( N_META - N_MATCHED )) metadata rows match no cell"; fi
     FROM="FROM o $([[ "$JOIN" == inner ]] && echo JOIN || echo 'LEFT JOIN') m ON o.$KEY = m.barcode"

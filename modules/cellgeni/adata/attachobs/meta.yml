@@ -3,10 +3,10 @@ name: cellgeni/adata/attachobs
 version: 1.0.0
 kind: Process
 description: >
-  Attaches cell metadata from a CSV (barcode, sample_id, ...) to an AnnData store's obs and/or makes barcodes unique
-  per sample (<barcode><delimiter><sample>), with adata-cli and duckdb. Inner join (default) drops cells without
-  metadata; the original row order is kept. Fails if a categorical obs column would change type in the CSV round
-  trip (cellgeni/adata-cli#124) unless --allow-dtype-change is set.
+  Attaches cell metadata from a CSV (barcode, optional sample_id, ...) to an AnnData store's obs and/or makes
+  barcodes unique per sample (<barcode><delimiter><sample>), with adata-cli and duckdb. Inner join (default) drops
+  cells without metadata; the original row order is kept. Fails if a categorical obs column would change type in
+  the CSV round trip (cellgeni/adata-cli#124) unless --allow-dtype-change is set.
 keywords:
   - anndata
   - h5ad
@@ -42,11 +42,11 @@ input:
       pattern: "*.{h5ad,zarr}"
     - name: metadata
       type: file
-      description: Optional cell metadata CSV with `barcode` and `sample_id` columns plus annotations.
+      description: Optional cell metadata CSV with a `barcode` column plus annotations; a `sample_id` column restricts it to this sample.
       pattern: "*.csv"
     - name: sample_id
       type: string
-      description: Optional value matched against the metadata `sample_id` column and used for the barcode suffix (default id).
+      description: Optional value that selects the metadata rows when the CSV has a `sample_id` column; used for the barcode suffix (default id).
     - name: output_prefix
       type: string
       description: Optional output name without extension (default id).

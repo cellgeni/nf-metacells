@@ -44,6 +44,23 @@ nextflow_process {
         }
     }
 
+    test("per-sample metadata without a sample_id column") {
+        config "./allow_dtype_change.config"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S2.rna', adata: file("${projectDir}/tests/data/rna_s2.h5ad", checkIfExists: true),
+                                  metadata: file("${projectDir}/tests/data/metadata_S2.csv", checkIfExists: true),
+                                  sample_id: 'S2', output_prefix: null, meta: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].adata).name == 'S2.rna.h5ad'
+        }
+    }
+
     test("barcode suffix and sample column, no metadata") {
         config "./suffix.config"
         when {

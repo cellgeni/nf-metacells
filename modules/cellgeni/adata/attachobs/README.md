@@ -18,8 +18,8 @@ ADATA_ATTACHOBS(channel.of(record(
 |---|---|---|
 | `id` | String | Item id; default output name and sample id |
 | `adata` | Path | `.h5ad` or `.zarr` store (staged under `input/`) |
-| `metadata` | Path? | CSV with `barcode` and `sample_id` columns plus annotations |
-| `sample_id` | String? | Matched against the metadata `sample_id` column; used for the barcode suffix (default `id`) |
+| `metadata` | Path? | CSV with a `barcode` column plus annotations; a `sample_id` column restricts it to this sample |
+| `sample_id` | String? | Selects the metadata rows when the CSV has a `sample_id` column; used for the barcode suffix (default `id`) |
 | `output_prefix` | String? | Output name without extension (default `id`) |
 | `meta` | Record? | Passed through unchanged |
 
