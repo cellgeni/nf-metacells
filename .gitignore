@@ -1,0 +1,28 @@
+# Nextflow runtime
+.nextflow*
+work/
+nf-work/
+reports/
+pipeline_info/
+
+# nf-test
+.nf-test/
+.nf-test.log
+
+# Outputs of local runs
+results*/
+*_results/
+
+# Logs and personal launch scripts
+*.log
+*.log.[0-9]*
+*.bsub
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# Local development scratch (spikes, GPU smoke jobs); never committed
+.dev/
