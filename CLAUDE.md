@@ -49,7 +49,9 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
 - `nextflow module spec` regenerates glob output names that `nextflow module validate` then rejects.
 - adata-cli 0.17.6: `import dataframe` turns digit-only categoricals (e.g. leiden) into int64 even with
   `--categorical` (cellgeni/adata-cli#124); bare `.mtx` files are refused (10x folders work); no `.npz`
-  import/export; never use `--inplace` on Nextflow-staged inputs (it follows the symlink).
+  import/export; never use `--inplace` on Nextflow-staged inputs (it follows the symlink). `convert
+  --feature-type` fails on 10x input without feature types and on AnnData input (cellgeni/adata-cli#127), so
+  `main.nf` guesses typed inputs from the path; a Cell Ranger 2 `.h5` still fails until #127 is fixed.
 - SEACells: pin commit a1173c8 (unified GPU model, `use_unified=True`); `use_sparse` is CPU-only; its `gpu` extra
   pins CUDA 13 packages, so images install the cu12 RAPIDS stack instead.
 - cuSPARSE/cupyx use int32 indices: matrices with ≥ 2^31 non-zeros silently truncate on GPU — check before

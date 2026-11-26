@@ -79,7 +79,8 @@ workflow  {
                     .splitCsv(header: true, sep: ',')
                     .map { row -> tuple([id: row.id], file(row.path, checkIfExists: true)) }
 
-    // Convert raw 10x files to H5AD with adata-cli; --feature-type only for inputs that record feature types
+    // Convert raw 10x files to H5AD with adata-cli; --feature-type only for inputs that record feature types,
+    // guessed from the path until cellgeni/adata-cli#127 is fixed (a Cell Ranger 2 .h5 still fails)
     if (params.raw) {
         def feature_type = params.type == 'atac' ? 'Peaks' : 'Gene Expression'
         converted = ADATA_CONVERT(
