@@ -15,9 +15,21 @@ Redesign into per-step CPU/GPU modules — see [docs/architecture.md](docs/archi
   metadata.
 - nf-test configuration and a CI workflow that lints the pipeline with Nextflow 26.10.7.
 
+- Modules `cellgeni/adata/convert` and `cellgeni/adata/attachobs` (adata-cli 0.17.6), with nf-tests.
+- `--allow_dtype_change` to accept digit-only categorical obs columns becoming integers when attaching
+  metadata (cellgeni/adata-cli#124); without it the run stops.
+
 ### Changed
 
+- Ingestion uses adata-cli instead of `ToH5ad`/`AttachCellMetadata`. `--raw --type atac` keeps peaks.
+- `--delimiter` is applied once at ingestion for every input (raw inputs used to be suffixed twice).
+- Filelist paths may be relative to the launch directory.
 - `.gitignore` is now tracked, with general patterns (Nextflow runtime, local results, logs, `.dev/` scratch).
+
+### Removed
+
+- `bin/convert_to_h5ad.py`, `bin/attach_annotation.py`, `modules/utils`. A bare `.mtx` file is no longer accepted
+  as raw input; give its 10x folder.
 
 ## [0.1.0] - 2026-11-26
 
