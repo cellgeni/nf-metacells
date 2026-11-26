@@ -1,0 +1,85 @@
+$schema: https://raw.githubusercontent.com/nextflow-io/schemas/refs/heads/main/module/v1/schema.json
+name: cellgeni/adata/attachobs
+version: 1.0.0
+kind: Process
+description: >
+  Attaches cell metadata from a CSV (barcode, sample_id, ...) to an AnnData store's obs and/or makes barcodes unique
+  per sample (<barcode><delimiter><sample>), with adata-cli and duckdb. Inner join (default) drops cells without
+  metadata; the original row order is kept. Fails if a categorical obs column would change type in the CSV round
+  trip (cellgeni/adata-cli#124) unless --allow-dtype-change is set.
+keywords:
+  - anndata
+  - h5ad
+  - zarr
+  - metadata
+  - obs
+  - single-cell
+license: MIT
+authors:
+  - "@claptar"
+maintainers:
+  - "@claptar"
+requires:
+  nextflow: ">=26.10.6"
+tools:
+  - adata-cli:
+      description: A CLI for operations with AnnData objects in .h5ad and .zarr files, without loading them into memory.
+      homepage: https://cellgeni.github.io/adata-cli/
+      license:
+        - MIT
+  - duckdb:
+      description: In-process SQL database used for the order-preserving join.
+      homepage: https://duckdb.org
+      license:
+        - MIT
+input:
+  - - name: id
+      type: string
+      description: Item id; default output name and default sample id.
+    - name: adata
+      type: file
+      description: AnnData store (.h5ad or .zarr), staged under input/.
+      pattern: "*.{h5ad,zarr}"
+    - name: metadata
+      type: file
+      description: Optional cell metadata CSV with `barcode` and `sample_id` columns plus annotations.
+      pattern: "*.csv"
+    - name: sample_id
+      type: string
+      description: Optional value matched against the metadata `sample_id` column and used for the barcode suffix (default id).
+    - name: output_prefix
+      type: string
+      description: Optional output name without extension (default id).
+    - name: meta
+      type: record
+      description: Optional metadata, passed through unchanged.
+output:
+  - - name: id
+      type: string
+      description: Item id.
+    - name: meta
+      type: record
+      description: Metadata passed through from the input.
+    - name: adata
+      type: file
+      description: The store with the new obs, `<output_prefix or id>.<ext.extension or h5ad>`.
+      pattern: "*.{h5ad,zarr}"
+topics:
+  - - name: process
+      type: string
+      description: versions topic, the process name.
+    - name: tool
+      type: string
+      description: versions topic, `adata-cli`.
+    - name: version
+      type: string
+      description: versions topic, the adata-cli version.
+  - - name: process
+      type: string
+      description: versions topic, the process name.
+    - name: tool
+      type: string
+      description: versions topic, `duckdb`.
+    - name: version
+      type: string
+      description: versions topic, the duckdb version.

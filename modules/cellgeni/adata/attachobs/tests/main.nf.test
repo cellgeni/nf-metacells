@@ -1,0 +1,78 @@
+nextflow_process {
+
+    name "Test Process ADATA_ATTACHOBS"
+    script "../main.nf"
+    process "ADATA_ATTACHOBS"
+
+    tag "modules"
+    tag "adata/attachobs"
+
+    test("metadata join stops on digit-only categoricals (cellgeni/adata-cli#124)") {
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  metadata: file("${projectDir}/tests/data/metadata.csv", checkIfExists: true),
+                                  sample_id: 'S1', output_prefix: null, meta: null)
+                """
+            }
+        }
+        then {
+            assert process.failed
+            assert process.errorReport.contains('cellgeni/adata-cli#124')
+        }
+    }
+
+    test("metadata inner join, dtype change allowed") {
+        config "./allow_dtype_change.config"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  metadata: file("${projectDir}/tests/data/metadata.csv", checkIfExists: true),
+                                  sample_id: 'S1', output_prefix: null, meta: null)
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            assertAll(
+                { assert process.success },
+                { assert file(out.adata).name == 'S1.rna.h5ad' },
+                { assert file(out.adata).size() > 0 }
+            )
+        }
+    }
+
+    test("barcode suffix and sample column, no metadata") {
+        config "./suffix.config"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S2.rna', adata: file("${projectDir}/tests/data/rna_s2.h5ad", checkIfExists: true),
+                                  metadata: null, sample_id: 'S2', output_prefix: null, meta: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].adata).name == 'S2.rna.h5ad'
+        }
+    }
+
+    test("stub") {
+        options "-stub"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  metadata: null, sample_id: null, output_prefix: 'S1', meta: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].adata).name == 'S1.h5ad'
+        }
+    }
+}
