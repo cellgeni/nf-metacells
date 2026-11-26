@@ -62,6 +62,7 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
 ## Git and releases
 
 - One branch per phase or feature, merged into `dev`; `main` only moves at releases (fast-forward).
+- Commits are atomic (one concern each) with short, to-the-point one-line messages.
 - Pipeline releases use calendar versions (`YY-DDD`, as nf-cellbender); modules use semver and are published
   from `modules/cellgeni/` to the `cellgeni` registry namespace. Published versions are never changed — bump.
 - Record every user-visible change in `CHANGELOG.md`.
