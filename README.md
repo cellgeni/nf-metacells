@@ -18,11 +18,12 @@ nextflow run main.nf [OPTIONS]
 ### Optional Options
 
 - `--help` - Show help message
-- `--output_dir` - Output directory for the aggregated files
-- `--raw` - Convert raw files to H5AD format (if raw files' paths are provided)
-- `--delimiter` - Specify delimiter if you want to add sample id to the barcode names
-- `--cell_metadata` - Specify metadata.csv file to attach to the .obs section of AnnData object
-- `--barcode_column` - Barcode column name in the cell metadata file (specify "obs_names" if you want to use the .obs index column)
+- `--outdir` - Output directory (default `results`)
+- `--raw` - Convert 10x `.h5` files or mtx folders to H5AD with [adata-cli](https://github.com/cellgeni/adata-cli). A bare `.mtx` file is not accepted; give its 10x folder
+- `--delimiter` - Rename barcodes to `<barcode><delimiter><id>` at ingestion (originals kept in `obs['barcode']`, sample id in `obs['sample']`)
+- `--cell_metadata` - CSV with `barcode` and `sample_id` columns whose other columns are attached to `.obs`; cells without metadata are dropped
+- `--barcode_column` - `.obs` column matched to the metadata barcodes (default: obs names)
+- `--allow_dtype_change` - Accept categorical `.obs` columns with digit-only labels (e.g. leiden) becoming integers when attaching metadata ([adata-cli#124](https://github.com/cellgeni/adata-cli/issues/124)); without it the run stops
 
 ### SEACells Options
 
@@ -82,7 +83,9 @@ nextflow run main.nf \
 The filelist should be a CSV file with the following format:
 
 ```csv
-item,filepath
+id,path
 pbmc_10k,/lustre/scratch126/cellgen/team361/data/pbmc/results/pbmc_10k/pbmc10k/pbmc10k.h5ad
 pbmc_3k,/lustre/scratch126/cellgen/team361/data/pbmc/results/pbmc3k/pbmc3k/pbmc3k.h5ad
 ```
+
+Paths may be absolute or relative to the launch directory.
