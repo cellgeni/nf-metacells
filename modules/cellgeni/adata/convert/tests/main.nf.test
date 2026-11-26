@@ -1,0 +1,70 @@
+nextflow_process {
+
+    name "Test Process ADATA_CONVERT"
+    script "../main.nf"
+    process "ADATA_CONVERT"
+
+    tag "modules"
+    tag "adata/convert"
+
+    test("10x multiome h5, gene expression only") {
+        when {
+            process {
+                """
+                input[0] = record(
+                    id: 'S1.rna',
+                    source: file("${projectDir}/tests/data/multiome/filtered_feature_bc_matrix.h5", checkIfExists: true),
+                    convert_args: '--feature-type "Gene Expression" --var-names gene_symbols --make-unique',
+                    output_prefix: null,
+                    meta: null
+                )
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            assertAll(
+                { assert process.success },
+                { assert out.id == 'S1.rna' },
+                { assert file(out.adata).name == 'S1.rna.h5ad' },
+                { assert file(out.adata).size() > 0 }
+            )
+        }
+    }
+
+    test("10x mtx folder to zarr") {
+        config "./zarr.config"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S2.rna', source: file("${projectDir}/tests/data/rna_mtx", checkIfExists: true),
+                                  convert_args: null, output_prefix: 'S2', meta: null)
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            assertAll(
+                { assert process.success },
+                { assert file(out.adata).name == 'S2.zarr' },
+                { assert file("${out.adata}/obs").isDirectory() }
+            )
+        }
+    }
+
+    test("stub") {
+        options "-stub"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', source: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  convert_args: null, output_prefix: null, meta: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].adata).name == 'S1.rna.h5ad'
+        }
+    }
+}

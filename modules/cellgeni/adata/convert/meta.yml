@@ -1,0 +1,64 @@
+$schema: https://raw.githubusercontent.com/nextflow-io/schemas/refs/heads/main/module/v1/schema.json
+name: cellgeni/adata/convert
+version: 1.0.0
+kind: Process
+description: >
+  Converts a single-cell matrix (10x .h5 including multiome, 10x mtx folder, h5ad, zarr, loom, MuData and more) to an
+  AnnData .h5ad or .zarr store with adata-cli, streaming from disk. Output format follows ext.extension (h5ad|zarr).
+keywords:
+  - anndata
+  - h5ad
+  - zarr
+  - conversion
+  - single-cell
+license: MIT
+authors:
+  - "@claptar"
+maintainers:
+  - "@claptar"
+requires:
+  nextflow: ">=26.10.6"
+tools:
+  - adata-cli:
+      description: A CLI for operations with AnnData objects in .h5ad and .zarr files, without loading them into memory.
+      homepage: https://cellgeni.github.io/adata-cli/
+      license:
+        - MIT
+input:
+  - - name: id
+      type: string
+      description: Item id; default output name.
+    - name: source
+      type: file
+      description: Matrix to convert, staged under input/ (any format `adata convert` reads).
+      pattern: "*"
+    - name: convert_args
+      type: string
+      description: Optional per-item `adata convert` options, e.g. `--feature-type "Gene Expression" --var-names gene_symbols --make-unique`.
+    - name: output_prefix
+      type: string
+      description: Optional output name without extension (default id).
+    - name: meta
+      type: record
+      description: Optional metadata, passed through unchanged.
+output:
+  - - name: id
+      type: string
+      description: Item id.
+    - name: meta
+      type: record
+      description: Metadata passed through from the input.
+    - name: adata
+      type: file
+      description: The converted store, `<output_prefix or id>.<ext.extension or h5ad>`.
+      pattern: "*.{h5ad,zarr}"
+topics:
+  - - name: process
+      type: string
+      description: versions topic, the process name.
+    - name: tool
+      type: string
+      description: versions topic, `adata-cli`.
+    - name: version
+      type: string
+      description: versions topic, the adata-cli version.
