@@ -1,0 +1,3 @@
+id,rna,metadata
+S1,tests/data/rna.h5ad,
+S2,tests/data/rna_s2.h5ad,tests/data/metadata_S2.csv

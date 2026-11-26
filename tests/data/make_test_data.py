@@ -20,6 +20,7 @@ Outputs (all small enough to commit):
     rna_mtx/              S2 RNA as a 10x mtx folder (matrix.mtx.gz, barcodes.tsv.gz, features.tsv.gz)
     metadata.csv          barcode,sample_id,annotation,cluster for S1/S2; drops ~10% of S1 cells,
                           adds 3 barcodes absent from the data
+    metadata_S2.csv       the S2 rows of metadata.csv without the sample_id column (per-sample metadata)
     samplesheet_*.csv     inputs for the test profiles (paths relative to the repository root)
 """
 
@@ -170,6 +171,7 @@ def main(out: Path) -> None:
         ignore_index=True,
     )
     meta.to_csv(out / "metadata.csv", index=False)
+    meta[meta.sample_id == "S2"].drop(columns="sample_id").to_csv(out / "metadata_S2.csv", index=False)
 
     rel = Path("tests/data")
     sheets = {
@@ -177,6 +179,7 @@ def main(out: Path) -> None:
         "samplesheet_atac.csv": "id,atac\nS1,{d}/atac.h5ad\n",
         "samplesheet_paired.csv": "id,rna,atac\nS1,{d}/rna.h5ad,{d}/atac.h5ad\n",
         "samplesheet_10x.csv": "id,rna,atac\nS1,{d}/multiome/filtered_feature_bc_matrix.h5,{d}/multiome/filtered_feature_bc_matrix.h5\nS2,{d}/rna_mtx,\n",
+        "samplesheet_metadata.csv": "id,rna,metadata\nS1,{d}/rna.h5ad,\nS2,{d}/rna_s2.h5ad,{d}/metadata_S2.csv\n",
     }
     for name, text in sheets.items():
         (out / name).write_text(text.format(d=rel))
