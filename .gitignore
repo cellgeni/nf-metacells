@@ -26,3 +26,6 @@ __pycache__/
 
 # Local development scratch (spikes, GPU smoke jobs); never committed
 .dev/
+
+# Credentials (quay.io robot, registry tokens)
+.env
