@@ -1,0 +1,3 @@
+id,rna,atac
+S1,tests/data/multiome/filtered_feature_bc_matrix.h5,tests/data/multiome/filtered_feature_bc_matrix.h5
+S2,tests/data/rna_mtx,

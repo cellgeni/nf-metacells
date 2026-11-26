@@ -1,0 +1,2 @@
+id,rna,atac
+S1,tests/data/rna.h5ad,tests/data/atac.h5ad
