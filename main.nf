@@ -1,7 +1,8 @@
 // INCLUDE MODULES
 include { SEACELLS } from './modules/cellgeni/seacells'
 include { HMETACELLS } from './modules/cellgeni/hmetacells'
-include { ToH5ad; AttachCellMetadata } from './modules/utils'
+include { ADATA_CONVERT } from './modules/cellgeni/adata/convert'
+include { ADATA_ATTACHOBS } from './modules/cellgeni/adata/attachobs'
 
 // HELP MESSAGE
 def helpMessage() {
@@ -19,10 +20,11 @@ def helpMessage() {
         Optional options:
         --help                          Show this help message
         --output_dir                        Output directory for the aggregated files
-        --raw                           Convert raw files to H5AD format (if raw files' paths are provided)
-        --delimiter                     Specify delimiter if you want to add sample id to the barcode names
-        --cell_metadata                 Specify metadata.csv file to attach to the .obs section of AnnData object
-        --barcode_column                Barcode column name in the cell metadata file (specify "obs_names" if you want to use the .obs index column)
+        --raw                           Convert 10x .h5 files or mtx folders to H5AD with adata-cli
+        --delimiter                     Rename barcodes to <barcode><delimiter><id> (originals kept in obs['barcode'])
+        --cell_metadata                 CSV (barcode, sample_id, ...) to attach to .obs; cells without metadata are dropped
+        --barcode_column                obs column matched to the metadata barcodes. Default: obs_names
+        --allow_dtype_change            Accept digit-only categorical obs columns becoming integers when attaching metadata
 
         SEACells options:
         --seacells.enabled              Enable SEACells aggregation
@@ -59,10 +61,6 @@ def helpMessage() {
 }
 
 workflow  {
-    // Define the default parameters
-    delimiter = params.delimiter
-    barcode_column = params.barcode_column
-
     // Send help message if -help is used
     if ( params.help || !params.filelist ) {
         helpMessage()
@@ -79,37 +77,33 @@ workflow  {
     // Read the files from the filelist
     files = channel.fromPath(params.filelist, checkIfExists: true)
                     .splitCsv(header: true, sep: ',')
-                    .map { row -> tuple([id: row.id], row.path) }
-    
+                    .map { row -> tuple([id: row.id], file(row.path, checkIfExists: true)) }
 
-    // Convert raw files to H5AD if needed
+    // Convert raw 10x files to H5AD with adata-cli; --feature-type only for inputs that record feature types
     if (params.raw) {
-        // Convert H5 files to H5AD
-        files = ToH5ad(
-            files,
-            delimiter ? delimiter : ""
+        def feature_type = params.type == 'atac' ? 'Peaks' : 'Gene Expression'
+        converted = ADATA_CONVERT(
+            files.map { meta, path ->
+                def typed = path.isDirectory()
+                    ? (path.resolve('features.tsv.gz').exists() || path.resolve('features.tsv').exists())
+                    : path.name.endsWith('.h5')
+                def args = (typed ? "--feature-type '${feature_type}' " : '') + (params.type == 'gex' ? '--var-names gene_symbols --make-unique' : '')
+                record(id: meta.id, source: path, convert_args: args, output_prefix: null, meta: null)
+            }
         )
-
-        // Set delimiter to empty string and barcode_column to "barcode" as it is done at for .h5ad file
-        delimiter = ""
-        barcode_column = "barcode"
+        files = converted.map { r -> tuple([id: r.id], r.adata) }
     }
 
-    // Attach cell metadata to .obs section of AnnData object if celltype annotation is provided
-    if (params.cell_metadata) {
-
-        // Check that barcode column is provided
-        if (!barcode_column) {
-            log.error "Cell metadata was provided, but --barcode_column is missing"
-            System.exit(1)
-        }
-        files = AttachCellMetadata(
-            files,
-            params.cell_metadata,
-            barcode_column
+    // Attach cell metadata and/or make barcodes unique per sample
+    if (params.cell_metadata || params.delimiter) {
+        def metadata = params.cell_metadata ? file(params.cell_metadata, checkIfExists: true) : null
+        attached = ADATA_ATTACHOBS(
+            files.map { meta, path ->
+                record(id: meta.id, adata: path, metadata: metadata, sample_id: meta.id, output_prefix: null, meta: null)
+            }
         )
+        files = attached.map { r -> tuple([id: r.id], r.adata) }
     }
-    
 
     // Run SEACells if enabled
     if (params.seacells.enabled) {
