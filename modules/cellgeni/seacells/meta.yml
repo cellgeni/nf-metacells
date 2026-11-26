@@ -5,7 +5,7 @@
 
 $schema: https://raw.githubusercontent.com/nextflow-io/schemas/refs/heads/main/module/v1/schema.json
 name: cellgeni/seacells
-version: 1.0.0
+version: 1.1.0
 description: SEACells aggregates single-cell profiles into metacells from scRNA-seq or scATAC-seq data.
 keywords:
 - metacells
@@ -40,7 +40,7 @@ output:
     description: |
       Groovy Map containing sample information
       e.g. [ id:'test' ]
-  - name: '*.h5ad'
+  - name: h5ad
     type: file
     description: Metacell-level AnnData object
     pattern: '*.h5ad'
@@ -51,7 +51,7 @@ output:
     description: |
       Groovy Map containing sample information
       e.g. [ id:'test' ]
-  - name: '*.csv'
+  - name: csv
     type: file
     description: CSV files with hard and soft metacell assignments
     pattern: '*.csv'
@@ -62,7 +62,7 @@ output:
     description: |
       Groovy Map containing sample information
       e.g. [ id:'test' ]
-  - name: '*.npy'
+  - name: npy
     type: file
     description: Numpy arrays containing SEACells assignment matrices
     pattern: '*.npy'
@@ -72,7 +72,7 @@ output:
     description: |
       Groovy Map containing sample information
       e.g. [ id:'test' ]
-  - name: '*.pdf'
+  - name: pdf
     type: file
     description: Diagnostic plots for convergence and metacell quality control
     pattern: '*.pdf'
@@ -83,7 +83,7 @@ output:
     description: |
       Groovy Map containing sample information
       e.g. [ id:'test' ]
-  - name: '*.pkl'
+  - name: pkl
     type: file
     description: Serialized SEACells model
     pattern: '*.pkl'

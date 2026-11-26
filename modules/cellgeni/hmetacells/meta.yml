@@ -46,7 +46,7 @@ output:
     description: |
       Groovy Map containing sample information
       e.g. [ id:'test' ]
-  - name: '*.csv'
+  - name: csv
     type: file
     description: CSV with hierarchical metacell assignments
     pattern: '*.csv'
