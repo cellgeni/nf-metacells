@@ -20,8 +20,10 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
 
 ## Commands
 
-- Lint: `nextflow lint .` — must report 0 errors.
+- Lint: `nextflow lint .` — must report 0 errors (it also lints `.dev/`, so delete broken scratch scripts).
 - Module tests: `nf-test test modules/cellgeni/<tool>/<step> --profile singularity`.
+- Pipeline: `nextflow run . -profile test,local` (also `test_atac`, `test_paired`, `test_10x`; add `-stub-run` for a
+  quick wiring check). Test samplesheets use paths relative to the repository root, so run from there.
 - Test data: `tests/data/make_test_data.py` (its header has the `uv run` command). Synthetic only — never
   commit real data.
 
@@ -37,15 +39,27 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
   sets `accelerator` from `--gpu_steps` and translates it to LSF `-gpu` options and Singularity `--nv`.
 - Containers: pinned `quay.io/cellgeni/*` tags, never `latest`; Dockerfiles live in `docker/<image>/`.
 - Versions: `topic:` records, `record(process: task.process, tool: '…', version: eval('…')) >> 'versions'`.
-- Params are flat (`seacells_gamma`, not `seacells.gamma`) and kept in sync between `params {}` and
-  `nextflow_schema.json`.
+- Params are flat (`seacells_min_iter`, not `seacells.min_iter`), typed in `main.nf` `params {}` and documented in
+  `nextflow_schema.json`. Only params that config settings use (`outdir`, `publish_mode`) live in `nextflow.config`.
+- Layout: `main.nf` (params, entry workflow, output block) → `workflows/metacells.nf` → `subworkflows/local/*`;
+  records in `workflows/types.nf`; `conf/base.config` (defaults), `conf/modules.config` (ext.args from params),
+  `conf/test*.config`.
 - meta.yml input/output names must be identifiers; the module/v1 schema rejects glob names like `'*.csv'`.
 
 ## Known gotchas
 
 - `join(by: 'id')` warns "Join fields … overwritten" when a step fills a field the state already has (as
   null). That is the intended right-wins update; don't "fix" it with `subMap`, which loses static types.
-- Untyped workflows can call typed processes only by passing `record(...)` values — maps fail at runtime.
+- Untyped workflows can call typed processes only by passing `record(...)` values — maps fail at runtime. Typed
+  workflows call untyped processes with tuples (`tuple(meta, path)`), which is how the v1 SEACELLS/HMETACELLS run
+  until phase 5.
+- Typed workflow bodies cannot `return`: use `exit(status, message)`. Scripts cannot have top-level variables:
+  use a function. Typed functions read `def name(arg: Type) -> Type { … }`.
+- Config closures (`ext.args`) see the script's params at task time, but in scripts the linter only knows params
+  declared in `params {}`.
+- nf-schema 3.1.0: its functions take no `workflow` argument (`paramsSummaryLog()`); `samplesheetToList` returns
+  rows in the property order of the schema, with empty cells as `[]`; `help` is a `String?` param so that
+  `--help <param>` works.
 - `nextflow module spec` regenerates glob output names that `nextflow module validate` then rejects.
 - adata-cli 0.17.6: `import dataframe` turns digit-only categoricals (e.g. leiden) into int64 even with
   `--categorical` (cellgeni/adata-cli#124); bare `.mtx` files are refused (10x folders work); no `.npz`
