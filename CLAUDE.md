@@ -17,6 +17,8 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
 - Registry: `nextflow module validate|publish modules/cellgeni/<name>` (needs `NXF_REGISTRY_TOKEN`);
   `nextflow module spec` needs `-namespace cellgeni`.
 - Scratch work (spikes, GPU smoke jobs, baselines) goes in `.dev/` — git-ignored and on lustre, so GPU nodes see it.
+- The login node is CPU-throttled (NumPy runs ~100x slower): run anything heavier than a unit test on a compute
+  node, e.g. `bsub -Is -q cpu-interactive -n 4 -M 32000 -R "select[mem>32000] rusage[mem=32000]" <script>`.
 
 ## Commands
 
@@ -45,11 +47,16 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
   `scripts/sync_shared.sh` (it copies the file into each module's `resources/usr/bin/`; CI checks the copies).
 - Containers: pinned `quay.io/cellgeni/*` tags, never `latest`, and no `docker://` prefix (the Docker engine
   rejects it; Singularity adds it itself); Dockerfiles and lock files live in `docker/<image>/`.
-- Versions: `topic:` records, `record(process: task.process, tool: '…', version: eval('…')) >> 'versions'`.
+- Versions: `topic:` records, `record(process: task.process, tool: '…', version: eval('…')) >> 'versions'`. Step
+  modules call `eval("scio.py version <distribution>")`; every `eval()` in a topic runs, so pick the distribution
+  inside one call (`${task.accelerator ? 'rapids-singlecell-cu12' : 'scanpy'}`), never in a ternary of two calls.
+- Step modules: input `record(id, adata, <step outputs>?, output_prefix?)`, output
+  `record(id, <field>: file("${prefix}.<step>.*"))` (the glob matches raw, h5ad and zarr), mode and formats from
+  `ext.output_mode|adata_format|sparse_format`. nf-tests chain modules with `setup { run('PROCESS') { … } }`.
 - Params are flat (`seacells_min_iter`, not `seacells.min_iter`), typed in `main.nf` `params {}` and documented in
   `nextflow_schema.json`. Params that only config settings use (`outdir`, `publish_mode`, the GPU settings) live in
-  `nextflow.config`: module nf-tests load the pipeline config but not `main.nf`, so config closures must not depend
-  on params that only `main.nf` declares (they are null there).
+  `nextflow.config`. Module nf-tests load the pipeline config (`conf/*.config`) but not `main.nf`: closures that read
+  `main.nf` params must cope with null (`params.x ? "--x ${params.x}" : ''`).
 - Layout: `main.nf` (params, entry workflow, output block) → `workflows/metacells.nf` → `subworkflows/local/*`;
   records in `workflows/types.nf`; `conf/base.config` (defaults), `conf/modules.config` (ext.args from params),
   `conf/test*.config`.
