@@ -107,9 +107,9 @@ Labels have two roles: `--constrain_by` (build metacells within groups) and `--e
 
 | Phase | Scope | State |
 |---|---|---|
-| 0 | Legacy close-out (seacells 1.1.0, tag 0.1.0), Nextflow 26.10.7, test data, spikes, CI | in progress |
-| 1 | adata-cli ingestion (`adata/convert`, `adata/attachobs`) | – |
-| 2 | Typed pipeline skeleton, nf-schema, output block | – |
+| 0 | Legacy close-out (seacells 1.1.0, tag 0.1.0), Nextflow 26.10.7, test data, spikes, CI | done |
+| 1 | adata-cli ingestion (`adata/convert`, `adata/attachobs`) | done |
+| 2 | Typed pipeline skeleton, nf-schema, output block | done: the v1 SEACells/hmetacells modules still preprocess internally |
 | 3 | Containers, GPU plumbing, shared I/O helper | – |
 | 4 | Representation modules (CPU + GPU) | – |
 | 5 | SEACells/hmetacells 2.0, aggregate, evaluate, assemble | – |
