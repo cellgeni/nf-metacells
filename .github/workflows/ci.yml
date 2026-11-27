@@ -40,6 +40,19 @@ jobs:
       - name: Test the shared I/O helper and the step scripts
         run: .venv/bin/python -m pytest shared/python tests/python -q
 
+  python-snapatac2:
+    name: python tests (snapATAC2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.4.0
+        with:
+          python-version: "3.12"
+      - name: Install the snapatac2 image environment
+        run: uv venv && uv pip install -r docker/snapatac2/requirements.txt pytest==9.2.0
+      - name: Test the snapATAC2 step scripts
+        run: .venv/bin/python -m pytest tests/python/test_snapatac2.py -q
+
   stub:
     name: stub run (${{ matrix.profile }})
     runs-on: ubuntu-latest
