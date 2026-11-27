@@ -1,0 +1,58 @@
+nextflow_process {
+
+    name "Test Process SNAPATAC2_SPECTRAL"
+    script "../main.nf"
+    process "SNAPATAC2_SPECTRAL"
+
+    tag "modules"
+    tag "snapatac2/spectral"
+
+    test("spectral embedding of the selected features, attached to an h5ad copy") {
+        config "./spectral.config"
+        setup {
+            run("SNAPATAC2_SELECTFEATURES") {
+                script "../../selectfeatures/main.nf"
+                process {
+                    """
+                    input[0] = record(id: 'S1.atac', adata: file("${projectDir}/tests/data/atac.h5ad", checkIfExists: true),
+                                      counts_key: null, output_prefix: null)
+                    """
+                }
+            }
+        }
+        when {
+            process {
+                """
+                input[0] = SNAPATAC2_SELECTFEATURES.out.map { r ->
+                    record(id: r.id, adata: file("${projectDir}/tests/data/atac.h5ad"), selected: r.selected,
+                           counts_key: null, output_prefix: null)
+                }
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            assertAll(
+                { assert process.success },
+                { assert file(out.spectral).name == 'S1.atac.spectral.h5ad' },
+                { assert file(out.spectral).size() > 0 }
+            )
+        }
+    }
+
+    test("stub") {
+        options "-stub"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.atac', adata: file("${projectDir}/tests/data/atac.h5ad", checkIfExists: true),
+                                  selected: null, counts_key: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].spectral).name == 'S1.atac.spectral.raw'
+        }
+    }
+}

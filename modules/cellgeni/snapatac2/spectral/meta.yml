@@ -1,0 +1,69 @@
+$schema: https://raw.githubusercontent.com/nextflow-io/schemas/refs/heads/main/module/v1/schema.json
+name: cellgeni/snapatac2/spectral
+version: 1.0.0
+kind: Process
+description: >
+  Spectral embedding (Laplacian eigenmaps of cosine similarity) of peak counts into obsm/X_spectral and
+  uns/spectral_eigenvalue: snapATAC2 on CPU, a CuPy port of its matrix-free cosine algorithm when the task has an
+  accelerator. Writes a raw step directory, a slim object or a full copy (ext.output_mode).
+keywords:
+  - atac
+  - anndata
+  - snapatac2
+  - gpu
+  - single-cell
+license: MIT
+authors:
+  - "@claptar"
+maintainers:
+  - "@claptar"
+requires:
+  nextflow: ">=26.10.6"
+tools:
+  - snapatac2:
+      description: Single-cell epigenomics analysis.
+      homepage: https://scverse.org/SnapATAC2
+      license:
+        - MIT
+  - cupy:
+      description: NumPy/SciPy-compatible array library for GPU-accelerated computing.
+      homepage: https://cupy.dev
+      license:
+        - MIT
+input:
+  - - name: id
+      type: string
+      description: Item id; default output prefix.
+    - name: adata
+      type: file
+      description: Base AnnData object, staged under input/.
+      pattern: "*.{h5ad,zarr}"
+    - name: selected
+      type: file
+      description: "Optional step output with the feature mask (default: the base object)."
+    - name: counts_key
+      type: string
+      description: "Optional element with the counts: `X` (default), `layers/<name>` or `raw/X`."
+    - name: output_prefix
+      type: string
+      description: Optional output prefix (default id).
+output:
+  - - name: id
+      type: string
+      description: Item id.
+    - name: spectral
+      type: file
+      description: >
+        `<prefix>.spectral.raw` (raw directory with obsm/X_spectral, uns/spectral_eigenvalue and manifest.json) or `<prefix>.spectral.h5ad|zarr`
+        (slim or attach object).
+      pattern: "*.spectral.{raw,h5ad,zarr}"
+topics:
+  - - name: process
+      type: string
+      description: versions topic, the process name.
+    - name: tool
+      type: string
+      description: versions topic, `snapatac2` or `cupy` (GPU).
+    - name: version
+      type: string
+      description: versions topic, the tool version.
