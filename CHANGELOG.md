@@ -5,31 +5,45 @@ onwards; modules under `modules/cellgeni/` use semver and have their own version
 
 ## [Unreleased]
 
-Redesign into per-step CPU/GPU modules — see [docs/architecture.md](docs/architecture.md).
+Redesign into per-step CPU/GPU modules — see [docs/architecture.md](docs/architecture.md). The README has a table of
+the renamed parameters.
 
 ### Added
 
+- Samplesheet input (`--input`: `id,rna,atac,metadata`) checked with nf-schema 3.1.0, and parameter validation;
+  `--help`, `--help <param>` and `--helpFull`.
+- Samples can have RNA, ATAC or both; `--membership_assay` picks the assay the methods run on in paired samples.
+- Per-sample cell metadata (samplesheet `metadata` column); its `sample_id` column is optional.
+- `memberships.csv` and `ingested.csv` output indexes and `pipeline_info/versions.csv`.
+- Profiles `local`, `docker`, `test`, `test_atac`, `test_paired` and `test_10x`.
+- Modules `cellgeni/adata/convert` and `cellgeni/adata/attachobs` (adata-cli 0.17.6), with nf-tests.
+- `--allow_dtype_change` to accept digit-only categorical obs columns becoming integers when attaching
+  metadata (cellgeni/adata-cli#124); without it the run stops.
 - `CLAUDE.md` maintainer notes and `docs/architecture.md` (design contracts and roadmap).
 - Synthetic test data and its generator (`tests/data/make_test_data.py`): paired RNA+ATAC sample, a second RNA
   sample with overlapping barcodes, counts in `layers/counts`, a 10x multiome `.h5`, a 10x mtx folder and cell
   metadata.
 - nf-test configuration and a CI workflow that lints the pipeline with Nextflow 26.10.7.
 
-- Modules `cellgeni/adata/convert` and `cellgeni/adata/attachobs` (adata-cli 0.17.6), with nf-tests.
-- `--allow_dtype_change` to accept digit-only categorical obs columns becoming integers when attaching
-  metadata (cellgeni/adata-cli#124); without it the run stops.
-
 ### Changed
 
-- Ingestion uses adata-cli instead of `ToH5ad`/`AttachCellMetadata`. `--raw --type atac` keeps peaks.
-- `--delimiter` is applied once at ingestion for every input (raw inputs used to be suffixed twice).
-- Filelist paths may be relative to the launch directory.
+- Flat parameters: `--methods seacells,hmetacells` instead of `--seacells.enabled`/`--hierarchial.enabled`,
+  `--metacell_size` (was `--seacells.gamma`), `--seacells_<option>`, `--hmetacells_<option>`, shared
+  `--hvg_n_top_genes`/`--pca_n_comps`/`--lsi_n_comps`/`--embedding_key`, `--constrain_by` and `--eval_labels`
+  (were `--celltype_label`), `--barcode_delimiter` (was `--delimiter`).
+- 10x inputs (`.h5` files, mtx folders) are detected and converted with adata-cli, replacing
+  `ToH5ad`/`AttachCellMetadata`; ATAC keeps its peaks. A bare `.mtx` file is no longer accepted; give its folder.
+- Barcode suffixes are applied once, at ingestion (raw inputs used to be suffixed twice).
+- Outputs go to `<outdir>/<sample>/<method>/` (Nextflow output block, copied by default; `--publish_mode`), run
+  reports to `<outdir>/pipeline_info/`.
+- Typed Nextflow (records, typed parameters, strict configuration); requires Nextflow 26.10.6 or later.
 - `.gitignore` is now tracked, with general patterns (Nextflow runtime, local results, logs, `.dev/` scratch).
 
 ### Removed
 
-- `bin/convert_to_h5ad.py`, `bin/attach_annotation.py`, `modules/utils`. A bare `.mtx` file is no longer accepted
-  as raw input; give its 10x folder.
+- `--filelist`, `--type`, `--raw`, `--celltype_label`, `--delimiter` and the nested `--seacells.*` and
+  `--hierarchial.*` parameters.
+- `bin/convert_to_h5ad.py`, `bin/attach_annotation.py`, `modules/utils` and `configs/` (now `conf/`).
 
 ## [0.1.0] - 2026-11-26
 
