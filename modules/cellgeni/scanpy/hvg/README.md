@@ -37,5 +37,5 @@ var/highly_variable and the flavour's statistics (var/means, var/dispersions_nor
 - GPU: give the task an accelerator (`accelerator = 1`; on LSF also request the GPU, e.g. with clusterOptions). The
   GPU path needs an A100 or H100 (CUDA 12).
 
-Containers: `quay.io/cellgeni/scanpy:1.12.6` (CPU), `quay.io/cellgeni/rapids-singlecell:0.18.1` (GPU). Versions are
-emitted on the `versions` topic.
+Containers: `community.wave.seqera.io/library/python_pip_scanpy_anndata_pruned:a5329e1ed934ad90` (CPU: scanpy 1.12.6,
+anndata 0.13.4), `quay.io/cellgeni/rapids-singlecell:0.18.1` (GPU). Versions are emitted on the `versions` topic.

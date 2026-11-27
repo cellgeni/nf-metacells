@@ -10,7 +10,7 @@ nextflow.enable.types = true
 process SNAPATAC2_SELECTFEATURES {
     tag id
     label 'process_single'
-    container 'quay.io/cellgeni/snapatac2:2.10.0'
+    container 'community.wave.seqera.io/library/python_pip_gcc_conda-gcc-specs_pruned:b8199b0e3c90fd81'
 
     input:
     record(id: String, adata: Path, counts_key: String?, output_prefix: String?)
@@ -31,6 +31,7 @@ process SNAPATAC2_SELECTFEATURES {
     script:
     """
     export OMP_NUM_THREADS=${task.cpus} OPENBLAS_NUM_THREADS=${task.cpus} NUMBA_NUM_THREADS=${task.cpus}
+    export PYTHONNOUSERSITE=1 NUMBA_CACHE_DIR=\${TMPDIR:-/tmp}/numba MPLCONFIGDIR=\${TMPDIR:-/tmp}/matplotlib
     snapatac2_selectfeatures.py \\
         --adata ${adata} \\
         --prefix ${output_prefix ?: id} \\

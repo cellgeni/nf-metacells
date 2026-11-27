@@ -37,4 +37,6 @@ obsm/X_spectral, uns/spectral_eigenvalue.
 - GPU: give the task an accelerator (`accelerator = 1`; on LSF also request the GPU, e.g. with clusterOptions). The
   GPU path needs an A100 or H100 (CUDA 12).
 
-Containers: `quay.io/cellgeni/snapatac2:2.10.0` (CPU), `quay.io/cellgeni/rapids-singlecell:0.18.1` (GPU). Versions are emitted on the `versions` topic.
+Containers: `community.wave.seqera.io/library/python_pip_gcc_conda-gcc-specs_pruned:b8199b0e3c90fd81` (CPU: snapATAC2
+2.10.0, anndata 0.13.4), `quay.io/cellgeni/rapids-singlecell:0.18.1` (GPU). Versions are emitted on the `versions`
+topic.

@@ -12,7 +12,9 @@ nextflow.enable.types = true
 process SNAPATAC2_SPECTRAL {
     tag id
     label 'process_gpu'
-    container task.accelerator ? 'quay.io/cellgeni/rapids-singlecell:0.18.1' : 'quay.io/cellgeni/snapatac2:2.10.0'
+    container task.accelerator ?
+        'quay.io/cellgeni/rapids-singlecell:0.18.1' :
+        'community.wave.seqera.io/library/python_pip_gcc_conda-gcc-specs_pruned:b8199b0e3c90fd81'
 
     input:
     record(id: String, adata: Path, selected: Path?, counts_key: String?, output_prefix: String?)
@@ -33,6 +35,7 @@ process SNAPATAC2_SPECTRAL {
     script:
     """
     export OMP_NUM_THREADS=${task.cpus} OPENBLAS_NUM_THREADS=${task.cpus} NUMBA_NUM_THREADS=${task.cpus}
+    export PYTHONNOUSERSITE=1 NUMBA_CACHE_DIR=\${TMPDIR:-/tmp}/numba MPLCONFIGDIR=\${TMPDIR:-/tmp}/matplotlib
     snapatac2_spectral.py \\
         --adata ${adata} \\
         --prefix ${output_prefix ?: id} \\

@@ -29,4 +29,5 @@ ANNDATA_ASSEMBLE(channel.of(record(id: 'S1.rna', adata: file('S1.h5ad'), sources
 
 - `ext.adata_format`: `h5ad` (default) or `zarr`.
 
-Container: `quay.io/cellgeni/scanpy:1.12.6`. Versions are emitted on the `versions` topic.
+Container: `community.wave.seqera.io/library/python_pip_scanpy_anndata_pruned:a5329e1ed934ad90` (scanpy 1.12.6,
+anndata 0.13.4). Versions are emitted on the `versions` topic.

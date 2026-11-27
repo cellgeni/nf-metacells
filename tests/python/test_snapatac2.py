@@ -1,5 +1,5 @@
 """snapATAC2 step scripts (selectfeatures, spectral on CPU) against snapATAC2 called directly. Needs the snapatac2
-environment (docker/snapatac2/requirements.txt); skipped elsewhere."""
+image (docker/snapatac2/environment.yml); skipped elsewhere."""
 
 import importlib.util
 import sys

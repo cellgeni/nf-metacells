@@ -9,7 +9,7 @@ nextflow.enable.types = true
 process ANNDATA_ASSEMBLE {
     tag id
     label 'process_single'
-    container 'quay.io/cellgeni/scanpy:1.12.6'
+    container 'community.wave.seqera.io/library/python_pip_scanpy_anndata_pruned:a5329e1ed934ad90'
 
     input:
     record(id: String, adata: Path, sources: List<Path>, output_prefix: String?)
@@ -25,6 +25,7 @@ process ANNDATA_ASSEMBLE {
 
     script:
     """
+    export PYTHONNOUSERSITE=1 NUMBA_CACHE_DIR=\${TMPDIR:-/tmp}/numba MPLCONFIGDIR=\${TMPDIR:-/tmp}/matplotlib
     anndata_assemble.py \\
         --adata ${adata} \\
         --prefix ${output_prefix ?: id} \\

@@ -35,4 +35,5 @@ var/selected, uns/selectfeatures.
 - `ext.sparse_format`: `npz` (default) or `mtx`, for raw outputs.
 - CPU only; `--threads` follows `task.cpus`.
 
-Containers: `quay.io/cellgeni/snapatac2:2.10.0`. Versions are emitted on the `versions` topic.
+Container: `community.wave.seqera.io/library/python_pip_gcc_conda-gcc-specs_pruned:b8199b0e3c90fd81` (snapATAC2
+2.10.0, anndata 0.13.4). Versions are emitted on the `versions` topic.

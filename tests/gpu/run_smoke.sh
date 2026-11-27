@@ -23,8 +23,10 @@ sif() {
 }
 rapids=$(sif quay.io/cellgeni/rapids-singlecell:0.18.1)
 seacells=$(sif quay.io/cellgeni/seacells:a1173c8-gpu)
-snapatac2=$(sif quay.io/cellgeni/snapatac2:2.10.0)
-run="singularity exec --nv -B /lustre,/nfs --env PYTHONPATH=$PWD/shared/python"
+snapatac2=$(sif community.wave.seqera.io/library/python_pip_gcc_conda-gcc-specs_pruned:b8199b0e3c90fd81)
+# Wave images set no environment: keep ~/.local out and the numba and matplotlib caches writable
+run="singularity exec --nv -B /lustre,/nfs --env PYTHONPATH=$PWD/shared/python,PYTHONNOUSERSITE=1"
+run+=" --env NUMBA_CACHE_DIR=/tmp/numba,MPLCONFIGDIR=/tmp/matplotlib"
 atac="$PWD/$logs/parity_atac.\$LSB_JOBID"
 checks=(
     "$run $rapids python tests/gpu/smoke_rapids.py"

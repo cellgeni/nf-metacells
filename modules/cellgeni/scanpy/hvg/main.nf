@@ -11,7 +11,9 @@ nextflow.enable.types = true
 process SCANPY_HVG {
     tag id
     label 'process_gpu'
-    container task.accelerator ? 'quay.io/cellgeni/rapids-singlecell:0.18.1' : 'quay.io/cellgeni/scanpy:1.12.6'
+    container task.accelerator ?
+        'quay.io/cellgeni/rapids-singlecell:0.18.1' :
+        'community.wave.seqera.io/library/python_pip_scanpy_anndata_pruned:a5329e1ed934ad90'
 
     input:
     record(id: String, adata: Path, log1p: Path?, counts_key: String?, output_prefix: String?)
@@ -32,6 +34,7 @@ process SCANPY_HVG {
     script:
     """
     export OMP_NUM_THREADS=${task.cpus} OPENBLAS_NUM_THREADS=${task.cpus} NUMBA_NUM_THREADS=${task.cpus}
+    export PYTHONNOUSERSITE=1 NUMBA_CACHE_DIR=\${TMPDIR:-/tmp}/numba MPLCONFIGDIR=\${TMPDIR:-/tmp}/matplotlib
     scanpy_hvg.py \\
         --adata ${adata} \\
         --prefix ${output_prefix ?: id} \\
