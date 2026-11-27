@@ -1,142 +1,126 @@
-// INCLUDE MODULES
-include { SEACELLS } from './modules/cellgeni/seacells'
-include { HMETACELLS } from './modules/cellgeni/hmetacells'
-include { ADATA_CONVERT } from './modules/cellgeni/adata/convert'
-include { ADATA_ATTACHOBS } from './modules/cellgeni/adata/attachobs'
+nextflow.enable.types = true
 
-// HELP MESSAGE
-def helpMessage() {
-    log.info """
-    ===========================
-    Pipeline to aggregate metacells/pseudobulks
-    ===========================
-    This pipeline performs metacell-aggregation (only SEACells option is available at the moment)
-    Usage: nextflow run main.nf [OPTIONS]
-        Required options:
-        --filelist                      File containing the list of files to be aggregated
-        --type                          Type of data to be aggregated (gex or atac)
-        --celltype_label                Cell type label for the aggregation (required for hierarchial clustering; optional for SEACells)
+/*
+ * nf-metacells: metacells (SEACells, hierarchical) from scRNA-seq and scATAC-seq AnnData.
+ * Design, contracts and roadmap: docs/architecture.md
+ */
 
-        Optional options:
-        --help                          Show this help message
-        --output_dir                        Output directory for the aggregated files
-        --raw                           Convert 10x .h5 files or mtx folders to H5AD with adata-cli
-        --delimiter                     Rename barcodes to <barcode><delimiter><id> (originals kept in obs['barcode'])
-        --cell_metadata                 CSV (barcode, sample_id, ...) to attach to .obs; cells without metadata are dropped
-        --barcode_column                obs column matched to the metadata barcodes. Default: obs_names
-        --allow_dtype_change            Accept digit-only categorical obs columns becoming integers when attaching metadata
+include { paramsHelp; paramsSummaryLog; samplesheetToList; validateParameters } from 'plugin/nf-schema'
+include { METACELLS } from './workflows/metacells'
+include { AssayState; Membership; MethodFiles } from './workflows/types'
 
-        SEACells options:
-        --seacells.enabled              Enable SEACells aggregation
-        --seacells.n_cells              Number of metacells to be aggregated
-        --seacells.gamma                Gamma value for the adaptive bandwidth kernel
-        --seacells.n_top_genes          Number of top variable genes to be used for aggregation (GEX only). Default: 2000
-        --seacells.n_components         Number of components to be used for aggregation (PCA for GEX and LSI for ATAC). Default: 50
-        --seacells.convergence_epsilon  Convergence epsilon for the optimization. Default: 0.00001
-        --seacells.min_iterations       Minimum number of iterations for the optimization. Default: 10
-        --seacells.max_iterations       Maximum number of iterations for the optimization. Default: 100
-        --seacells.use_sparse           Use sparse matrix for the optimization. Default: false
-        --seacells.precomputed          Use precomputed distance matrix for the aggregation.
+// Documented in nextflow_schema.json; `outdir` and `publish_mode` are in nextflow.config, which uses them
+params {
+    // Input
+    input: Path?
+    cell_metadata: Path?
+    barcode_column: String = 'obs_names'
+    barcode_delimiter: String?
+    allow_dtype_change: Boolean = false
 
-        Hierarchial options:
-        --hierarchial.enabled           Enable Hierarchial clustering aggregation
-        --hierarchial.n_min             Minimum number of clusters for the aggregation
-        --hierarchial.n_max             Maximum number of clusters for the aggregation
-        --hierarchial.method            Method for the aggregation (kmeans or louvain)
-        --hierarchial.n_top_genes       Number of top variable genes to be used for aggregation (GEX only). Default: 2000
-        --hierarchial.n_components      Number of components to be used for aggregation (PCA for GEX and LSI for ATAC). Default: 50
-        --hierarchial.n_neighbors       Number of neighbors for the aggregation. Default: 15
-        --hierarchial.precomputed       Use precomputed distance matrix for the aggregation.
-            
-    Examples:
-        1. Perform metacell aggregation using SEACells
-            nextflow run main.nf --filelist filelist.csv --type gex --seacells.enabled --seacells.gamma 75
+    // Methods
+    methods: String = 'seacells'
+    membership_assay: String = 'rna'
+    metacell_size: Integer = 75
+    constrain_by: String?
+    eval_labels: String?
 
-    == filelist.csv format ==
-    item,filepath
-    pbmc_10k,/lustre/scratch126/cellgen/team361/data/pbmc/results/pbmc_10k/pbmc10k/pbmc10k.h5ad
-    pbmc_3k,/lustre/scratch126/cellgen/team361/data/pbmc/results/pbmc3k/pbmc3k/pbmc3k.h5ad
-    ========================
-    """.stripIndent()
+    // Representation (computed inside the methods until the per-step modules land)
+    embedding_key: String?
+    hvg_n_top_genes: Integer = 2000
+    pca_n_comps: Integer = 50
+    lsi_n_comps: Integer = 50
+
+    // SEACells
+    seacells_n_metacells: Integer?
+    seacells_n_waypoint_eigs: Integer = 10
+    seacells_convergence_epsilon: Float = 0.00001
+    seacells_min_iter: Integer = 10
+    seacells_max_iter: Integer = 50
+    seacells_use_sparse: Boolean = false
+
+    // Hierarchical metacells
+    hmetacells_n_min: Integer?
+    hmetacells_n_max: Integer?
+    hmetacells_method: String = 'louvain'
+    hmetacells_n_neighbors: Integer = 15
+
+    // --help, --help <param>, --helpFull
+    help: String?
+    helpFull: Boolean = false
 }
 
-workflow  {
-    // Send help message if -help is used
-    if ( params.help || !params.filelist ) {
-        helpMessage()
-        System.exit(0)
+workflow {
+    main:
+    if (params.help || params.helpFull) {
+        exit(0, paramsHelp(
+            parameter: !params.help || params.help == 'true' ? null : params.help,
+            beforeText: helpBefore(),
+            command: 'nextflow run cellgeni/nf-metacells --input samplesheet.csv --methods seacells'
+        ))
+    }
+    validateParameters()
+    log.info(paramsSummaryLog())
+
+    def methods = params.methods.tokenize(',')
+    if ('hmetacells' in methods && !(params.hmetacells_n_min && params.hmetacells_n_max && params.constrain_by)) {
+        error('hmetacells needs --hmetacells_n_min, --hmetacells_n_max and --constrain_by (the obs column to build metacells within)')
     }
 
-    // Check if the filelist is provided
-    if (!params.filelist || (!params.seacells.enabled && !params.hierarchial.enabled) || !params.type ) {
-        log.error "Missing required arguments: filelist, type, seacells.enabled or hierarchial.enabled options"
-        helpMessage()
-        System.exit(1)
-    }
+    // Rows come in the property order of assets/schema_input.json; empty cells come as []
+    samples = channel.fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
+        .map { row -> record(id: row[0], rna: row[1] ?: null, atac: row[2] ?: null, metadata: row[3] ?: null) }
 
-    // Read the files from the filelist
-    files = channel.fromPath(params.filelist, checkIfExists: true)
-                    .splitCsv(header: true, sep: ',')
-                    .map { row -> tuple([id: row.id], file(row.path, checkIfExists: true)) }
+    run = METACELLS(samples, methods, params.membership_assay, params.cell_metadata, params.barcode_delimiter)
 
-    // Convert raw 10x files to H5AD with adata-cli; --feature-type only for inputs that record feature types,
-    // guessed from the path until cellgeni/adata-cli#127 is fixed (a Cell Ranger 2 .h5 still fails)
-    if (params.raw) {
-        def feature_type = params.type == 'atac' ? 'Peaks' : 'Gene Expression'
-        converted = ADATA_CONVERT(
-            files.map { meta, path ->
-                def typed = path.isDirectory()
-                    ? (path.resolve('features.tsv.gz').exists() || path.resolve('features.tsv').exists())
-                    : path.name.endsWith('.h5')
-                def args = (typed ? "--feature-type '${feature_type}' " : '') + (params.type == 'gex' ? '--var-names gene_symbols --make-unique' : '')
-                record(id: meta.id, source: path, convert_args: args, output_prefix: null, meta: null)
-            }
-        )
-        files = converted.map { r -> tuple([id: r.id], r.adata) }
-    }
+    publish:
+    ingested = run.written
+    memberships = run.memberships
+    method_files = run.extras
+    versions = channel.topic('versions').unique()
+}
 
-    // Attach cell metadata and/or make barcodes unique per sample
-    if (params.cell_metadata || params.delimiter) {
-        def metadata = params.cell_metadata ? file(params.cell_metadata, checkIfExists: true) : null
-        attached = ADATA_ATTACHOBS(
-            files.map { meta, path ->
-                record(id: meta.id, adata: path, metadata: metadata, sample_id: meta.id, output_prefix: null, meta: null)
-            }
-        )
-        files = attached.map { r -> tuple([id: r.id], r.adata) }
-    }
-
-    // Run SEACells if enabled
-    if (params.seacells.enabled) {
-        // Check that all necessary arguments are provided
-        if ( !params.seacells.n_cells && !params.seacells.gamma ) {
-            log.error "Missing arguments for SEACells"
-            helpMessage()
-            System.exit(1)
-        // Check that only one of n_cells or gamma is provided
-        } else if (params.seacells.n_cells && params.seacells.gamma) {
-            log.error "Both n_cells and gamma cannot be provided at the same time"
-            helpMessage()
-            System.exit(1)
-        } else {
-            // Run SEACells
-            SEACELLS(
-                files
-            )
+output {
+    ingested: Channel<AssayState> {
+        path { st -> "${st.sample}/ingest" }
+        index {
+            path 'ingested.csv'
+            header true
         }
     }
-
-    // Run Hierarchial clustering if enabled
-    if (params.hierarchial.enabled) {
-        // Check that all necessary arguments are provided
-        if ( !params.hierarchial.n_min || !params.hierarchial.n_max || !params.celltype_label ) {
-            log.error "Missing arguments for hierarchial clustering"
-            helpMessage()
-            System.exit(1)
-        } else {
-            // Run Hierarchial clustering
-            HMETACELLS(files)
+    memberships: Channel<Membership> {
+        path { m -> "${m.sample}/${m.method}" }
+        index {
+            path 'memberships.csv'
+            header true
         }
     }
+    method_files: Channel<MethodFiles> {
+        path { f -> "${f.sample}/${f.method}" }
+    }
+    versions {
+        index {
+            path 'pipeline_info/versions.csv'
+            header true
+        }
+    }
+}
 
+def helpBefore() -> String {
+    return '''
+    =============
+    nf-metacells
+    =============
+    Metacells from scRNA-seq and scATAC-seq AnnData: SEACells and hierarchical (per-group) metacells.
+
+    == samplesheet (comma-separated) ==
+    id,rna,atac,metadata
+    S1,/path/S1_gex.h5ad,/path/S1_atac.h5ad,
+    S2,/path/S2/filtered_feature_bc_matrix.h5,/path/S2/filtered_feature_bc_matrix.h5,/path/S2_metadata.csv
+    S3,/path/S3/filtered_feature_bc_matrix,,
+
+    rna and atac take an .h5ad or .zarr store, a 10x .h5 file or a 10x mtx folder (a multiome .h5 may be given for
+    both); every sample needs at least one of them. metadata is an optional CSV (barcode, annotations...) for that
+    sample; --cell_metadata gives one for all samples (barcode, sample_id, annotations...).
+    '''.stripIndent()
 }
