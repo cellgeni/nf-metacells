@@ -68,7 +68,11 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
   --feature-type` fails on 10x input without feature types and on AnnData input (cellgeni/adata-cli#127), so
   `main.nf` guesses typed inputs from the path; a Cell Ranger 2 `.h5` still fails until #127 is fixed.
 - SEACells: pin commit a1173c8 (unified GPU model, `use_unified=True`); `use_sparse` is CPU-only; its `gpu` extra
-  pins CUDA 13 packages, so images install the cu12 RAPIDS stack instead.
+  pins CUDA 13 packages, so images install the cu12 RAPIDS stack instead. It imports IPython without declaring it.
+  Identical cells give a zero kernel bandwidth and a silent collapse into one metacell (keep the v1 jitter for
+  exact ties); non-convergence raises `RuntimeWarning` after the labels are set; randomness comes from the global
+  `np.random`. On GPU, the B update recomputes K·B in every Frank-Wolfe step (~48 s per iteration at 100k cells),
+  and cuSPARSE SpGEMM in the kernel step failed once (`CUSPARSE_STATUS_INTERNAL_ERROR`) on a rerun of the same data.
 - cuSPARSE/cupyx use int32 indices: matrices with ≥ 2^31 non-zeros silently truncate on GPU — check before
   moving data to the device.
 - pandas 3 makes anndata ≥ 0.12 write string indices/columns as `nullable-string-array`, which older anndata
