@@ -1,0 +1,71 @@
+nextflow_process {
+
+    name "Test Process SCANPY_NORMALIZETOTAL"
+    script "../main.nf"
+    process "SCANPY_NORMALIZETOTAL"
+
+    tag "modules"
+    tag "scanpy/normalizetotal"
+
+    test("raw directory from X") {
+        config "./target_sum.config"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  counts_key: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            def manifest = new groovy.json.JsonSlurper().parse(file("${out.normalized}/manifest.json"))
+            assertAll(
+                { assert process.success },
+                { assert file(out.normalized).name == 'S1.rna.normalizetotal.raw' },
+                { assert file("${out.normalized}/layers/normalized.npz").exists() },
+                { assert manifest.step == 'normalizetotal' },
+                { assert manifest.elements['layers/normalized'].encoding == 'csr' },
+                { assert manifest.elements['layers/normalized'].dtype == 'float32' },
+                { assert manifest.params.target_sum == 10000 }
+            )
+        }
+    }
+
+    test("counts from layers/counts, attached to a zarr copy") {
+        config "./attach_zarr.config"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna_layercounts.h5ad", checkIfExists: true),
+                                  counts_key: 'layers/counts', output_prefix: 'S1')
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            assertAll(
+                { assert process.success },
+                { assert file(out.normalized).name == 'S1.normalizetotal.zarr' },
+                { assert file("${out.normalized}/layers/normalized").isDirectory() },
+                { assert file("${out.normalized}/layers/counts").isDirectory() }
+            )
+        }
+    }
+
+    test("stub") {
+        options "-stub"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  counts_key: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].normalized).name == 'S1.rna.normalizetotal.raw'
+        }
+    }
+}
