@@ -1,0 +1,59 @@
+nextflow_process {
+
+    name "Test Process ATAC_LSI"
+    script "../main.nf"
+    process "ATAC_LSI"
+
+    tag "modules"
+    tag "atac/lsi"
+
+    test("LSI of a TF-IDF raw directory") {
+        config "./lsi.config"
+        setup {
+            run("ATAC_TFIDF") {
+                script "../../tfidf/main.nf"
+                process {
+                    """
+                    input[0] = record(id: 'S1.atac', adata: file("${projectDir}/tests/data/atac.h5ad", checkIfExists: true),
+                                      counts_key: null, output_prefix: null)
+                    """
+                }
+            }
+        }
+        when {
+            process {
+                """
+                input[0] = ATAC_TFIDF.out.map { r ->
+                    record(id: r.id, adata: file("${projectDir}/tests/data/atac.h5ad"), tfidf: r.tfidf, output_prefix: null)
+                }
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            def manifest = new groovy.json.JsonSlurper().parse(file("${out.lsi}/manifest.json"))
+            assertAll(
+                { assert process.success },
+                { assert file(out.lsi).name == 'S1.atac.lsi.raw' },
+                { assert manifest.elements['obsm/X_lsi'].shape == [400, 20] },
+                { assert manifest.elements['varm/LSI'].shape == [3000, 20] }
+            )
+        }
+    }
+
+    test("stub") {
+        options "-stub"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.atac', adata: file("${projectDir}/tests/data/atac.h5ad", checkIfExists: true),
+                                  tfidf: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].lsi).name == 'S1.atac.lsi.raw'
+        }
+    }
+}

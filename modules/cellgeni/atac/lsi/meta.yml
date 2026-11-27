@@ -1,0 +1,65 @@
+$schema: https://raw.githubusercontent.com/nextflow-io/schemas/refs/heads/main/module/v1/schema.json
+name: cellgeni/atac/lsi
+version: 1.0.0
+kind: Process
+description: >
+  Latent semantic indexing of a TF-IDF layer into obsm/X_lsi, varm/LSI and uns/lsi, as muon's lsi does: SciPy svds
+  on CPU, cupyx svds when the task has an accelerator. Writes a raw step directory, a slim object or a full copy
+  (ext.output_mode).
+keywords:
+  - atac
+  - anndata
+  - gpu
+  - single-cell
+license: MIT
+authors:
+  - "@claptar"
+maintainers:
+  - "@claptar"
+requires:
+  nextflow: ">=26.10.6"
+tools:
+  - scipy:
+      description: Fundamental algorithms for scientific computing in Python.
+      homepage: https://scipy.org
+      license:
+        - BSD-3-Clause
+  - cupy:
+      description: NumPy/SciPy-compatible array library for GPU-accelerated computing.
+      homepage: https://cupy.dev
+      license:
+        - MIT
+input:
+  - - name: id
+      type: string
+      description: Item id; default output prefix.
+    - name: adata
+      type: file
+      description: Base AnnData object, staged under input/.
+      pattern: "*.{h5ad,zarr}"
+    - name: tfidf
+      type: file
+      description: "Optional step output with the TF-IDF layer (default: the base object)."
+    - name: output_prefix
+      type: string
+      description: Optional output prefix (default id).
+output:
+  - - name: id
+      type: string
+      description: Item id.
+    - name: lsi
+      type: file
+      description: >
+        `<prefix>.lsi.raw` (raw directory with obsm/X_lsi, varm/LSI, uns/lsi and manifest.json) or `<prefix>.lsi.h5ad|zarr`
+        (slim or attach object).
+      pattern: "*.lsi.{raw,h5ad,zarr}"
+topics:
+  - - name: process
+      type: string
+      description: versions topic, the process name.
+    - name: tool
+      type: string
+      description: versions topic, `scipy` or `cupy` (GPU).
+    - name: version
+      type: string
+      description: versions topic, the tool version.
