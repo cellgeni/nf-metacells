@@ -83,6 +83,10 @@ record Membership { id; sample; basis; method; run; membership; extras }
 - Any element input may be a raw directory, a slim object or a full object. Steps never change n_obs or n_vars
   (feature selection is a mask) and never overwrite the counts.
 - The output index uses the samplesheet columns, so a finished run can be the next run's `--input`.
+- Step scripts implement this contract through `shared/python/scio.py`, which `scripts/sync_shared.sh` copies into
+  each module: `Reader(base, sources)` finds an element in the given step outputs, then in the base object, and
+  refuses sources whose cells or features differ from the base; `Writer(reader, step, prefix, mode)` writes the new
+  elements in any mode. Slim and attach objects keep the manifest in `uns['nf_metacells'][<step>]`.
 
 ## CPU and GPU
 
