@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/cellgeni/nf-metacells/main/assets/schema_input.json",
+  "title": "cellgeni/nf-metacells samplesheet",
+  "description": "One row per sample. main.nf reads the columns in this property order.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "errorMessage": "Sample id must be letters, digits, '_' or '-'"
+      },
+      "rna": {
+        "type": "string",
+        "format": "path",
+        "exists": true,
+        "pattern": "^\\S+$",
+        "errorMessage": "rna must be an existing .h5ad/.zarr store, 10x .h5 file or 10x mtx folder, without spaces"
+      },
+      "atac": {
+        "type": "string",
+        "format": "path",
+        "exists": true,
+        "pattern": "^\\S+$",
+        "errorMessage": "atac must be an existing .h5ad/.zarr store, 10x .h5 file or 10x mtx folder, without spaces"
+      },
+      "metadata": {
+        "type": "string",
+        "format": "file-path",
+        "exists": true,
+        "pattern": "^\\S+\\.csv$",
+        "errorMessage": "metadata must be an existing .csv file with a barcode column"
+      }
+    },
+    "required": ["id"],
+    "anyOf": [{ "required": ["rna"] }, { "required": ["atac"] }]
+  },
+  "uniqueEntries": ["id"]
+}

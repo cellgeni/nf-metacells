@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/cellgeni/nf-metacells/main/nextflow_schema.json",
+  "title": "cellgeni/nf-metacells pipeline parameters",
+  "description": "Metacells (SEACells, hierarchical) from scRNA-seq and scATAC-seq AnnData",
+  "type": "object",
+  "$defs": {
+    "input_output_options": {
+      "title": "Input/output options",
+      "type": "object",
+      "fa_icon": "fas fa-terminal",
+      "required": ["input"],
+      "properties": {
+        "input": {
+          "type": "string",
+          "format": "file-path",
+          "exists": true,
+          "mimetype": "text/csv",
+          "pattern": "^\\S+\\.csv$",
+          "schema": "assets/schema_input.json",
+          "description": "Samplesheet: one row per sample with columns id, rna, atac and metadata.",
+          "help_text": "rna and atac take an .h5ad or .zarr store, a 10x .h5 file or a 10x mtx folder; every sample needs at least one of them. A multiome .h5 may be given for both: each assay keeps its own feature type. metadata is an optional per-sample CSV with a barcode column.",
+          "fa_icon": "fas fa-file-csv"
+        },
+        "outdir": {
+          "type": "string",
+          "format": "directory-path",
+          "default": "results",
+          "description": "Output directory.",
+          "fa_icon": "fas fa-folder-open"
+        },
+        "publish_mode": {
+          "type": "string",
+          "default": "copy",
+          "enum": ["copy", "copyNoFollow", "link", "move", "rellink", "symlink"],
+          "description": "How outputs are published to the output directory.",
+          "fa_icon": "fas fa-copy"
+        },
+        "cell_metadata": {
+          "type": "string",
+          "format": "file-path",
+          "exists": true,
+          "pattern": "^\\S+\\.csv$",
+          "description": "Cell metadata CSV for all samples: barcode and sample_id columns plus annotations.",
+          "help_text": "Rows of each sample are joined to its obs; cells without metadata are dropped. A sample's own metadata file (samplesheet metadata column) is used instead when given.",
+          "fa_icon": "fas fa-table"
+        },
+        "barcode_column": {
+          "type": "string",
+          "default": "obs_names",
+          "description": "obs column matched to the metadata barcodes (obs_names: the obs index)."
+        },
+        "barcode_delimiter": {
+          "type": "string",
+          "description": "Rename barcodes to <barcode><delimiter><sample id>, keeping the originals in obs['barcode'].",
+          "help_text": "Makes barcodes unique across samples and adds a `sample` obs column."
+        },
+        "allow_dtype_change": {
+          "type": "boolean",
+          "description": "Accept digit-only categorical obs columns becoming integers when attaching metadata (cellgeni/adata-cli#124).",
+          "help_text": "Without it the run stops instead of changing the column type."
+        }
+      }
+    },
+    "method_options": {
+      "title": "Methods",
+      "type": "object",
+      "fa_icon": "fas fa-object-group",
+      "properties": {
+        "methods": {
+          "type": "string",
+          "default": "seacells",
+          "pattern": "^(seacells|hmetacells)(,(seacells|hmetacells))*$",
+          "description": "Metacell methods to run, comma-separated: seacells, hmetacells."
+        },
+        "membership_assay": {
+          "type": "string",
+          "default": "rna",
+          "enum": ["rna", "atac"],
+          "description": "Assay that drives membership in samples with both RNA and ATAC.",
+          "help_text": "A sample with one assay always uses that one."
+        },
+        "metacell_size": {
+          "type": "integer",
+          "default": 75,
+          "minimum": 1,
+          "description": "Target number of cells per metacell (SEACells, unless --seacells_n_metacells is set)."
+        },
+        "constrain_by": {
+          "type": "string",
+          "description": "obs column to build metacells within, e.g. cell types (required by hmetacells)."
+        },
+        "eval_labels": {
+          "type": "string",
+          "description": "obs column used to report metacell purity (SEACells)."
+        }
+      }
+    },
+    "representation_options": {
+      "title": "Representation",
+      "type": "object",
+      "fa_icon": "fas fa-project-diagram",
+      "description": "The embedding the methods build metacells on: PCA for RNA, LSI for ATAC, or one already in the object.",
+      "properties": {
+        "embedding_key": {
+          "type": "string",
+          "description": "obsm key of an embedding already in the object (skips normalisation and PCA/LSI)."
+        },
+        "hvg_n_top_genes": {
+          "type": "integer",
+          "default": 2000,
+          "minimum": 2,
+          "description": "Number of highly variable genes (RNA)."
+        },
+        "pca_n_comps": {
+          "type": "integer",
+          "default": 50,
+          "minimum": 2,
+          "description": "Number of principal components (RNA)."
+        },
+        "lsi_n_comps": {
+          "type": "integer",
+          "default": 50,
+          "minimum": 2,
+          "description": "Number of LSI components (ATAC)."
+        }
+      }
+    },
+    "seacells_options": {
+      "title": "SEACells",
+      "type": "object",
+      "fa_icon": "fas fa-braille",
+      "properties": {
+        "seacells_n_metacells": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of metacells per sample (overrides --metacell_size)."
+        },
+        "seacells_n_waypoint_eigs": {
+          "type": "integer",
+          "default": 10,
+          "minimum": 1,
+          "description": "Number of eigenvectors for the waypoint initialisation."
+        },
+        "seacells_convergence_epsilon": {
+          "type": "number",
+          "default": 0.00001,
+          "exclusiveMinimum": 0,
+          "description": "Convergence threshold, relative to the initial residual sum of squares."
+        },
+        "seacells_min_iter": {
+          "type": "integer",
+          "default": 10,
+          "minimum": 1,
+          "description": "Minimum number of iterations."
+        },
+        "seacells_max_iter": {
+          "type": "integer",
+          "default": 50,
+          "minimum": 1,
+          "description": "Maximum number of iterations."
+        },
+        "seacells_use_sparse": {
+          "type": "boolean",
+          "description": "Use the sparse CPU implementation."
+        }
+      }
+    },
+    "hmetacells_options": {
+      "title": "Hierarchical metacells",
+      "type": "object",
+      "fa_icon": "fas fa-sitemap",
+      "properties": {
+        "hmetacells_n_min": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum number of cells per metacell (required by hmetacells)."
+        },
+        "hmetacells_n_max": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of cells per metacell (required by hmetacells)."
+        },
+        "hmetacells_method": {
+          "type": "string",
+          "default": "louvain",
+          "enum": ["louvain", "paris"],
+          "description": "Hierarchical clustering method."
+        },
+        "hmetacells_n_neighbors": {
+          "type": "integer",
+          "default": 15,
+          "minimum": 2,
+          "description": "Number of neighbours of the kNN graph."
+        }
+      }
+    },
+    "generic_options": {
+      "title": "Generic options",
+      "type": "object",
+      "fa_icon": "fas fa-file-import",
+      "properties": {
+        "help": {
+          "type": ["boolean", "string"],
+          "description": "Show the main parameters, or one parameter's details with --help <param>.",
+          "hidden": true
+        },
+        "helpFull": {
+          "type": "boolean",
+          "description": "Show all parameters.",
+          "hidden": true
+        }
+      }
+    }
+  },
+  "allOf": [
+    { "$ref": "#/$defs/input_output_options" },
+    { "$ref": "#/$defs/method_options" },
+    { "$ref": "#/$defs/representation_options" },
+    { "$ref": "#/$defs/seacells_options" },
+    { "$ref": "#/$defs/hmetacells_options" },
+    { "$ref": "#/$defs/generic_options" }
+  ]
+}
