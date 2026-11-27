@@ -23,6 +23,9 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
 ## Commands
 
 - Lint: `nextflow lint .` — must report 0 errors (it also lints `.dev/`, so delete broken scratch scripts).
+  When the desktop app has left a `.claude/` here, its `.cc-writes` is unreadable and lint stops at it; add
+  `-exclude .claude` **and** the defaults that flag replaces: `-exclude .git -exclude .lineage -exclude
+  .nextflow -exclude .nf-test -exclude nf-test.config -exclude work`. CI has no `.claude/` and is unaffected.
 - Module tests: `nf-test test modules/cellgeni/<tool>/<step> --profile singularity`.
 - Pipeline: `nextflow run . -profile test,local` (also `test_atac`, `test_paired`, `test_10x`; add `-stub-run` for a
   quick wiring check). Test samplesheets use paths relative to the repository root, so run from there.
