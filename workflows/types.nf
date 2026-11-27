@@ -21,6 +21,24 @@ record AssayState {
     adata: Path
 }
 
+// One representation step's output for one assay; id = <sample>.<assay>.<step>
+record StepOutput {
+    id: String
+    sample: String
+    assay: String
+    step: String
+    output: Path
+}
+
+// The embedding the methods of a sample run on; id = <sample>.<assay>. `adata` holds obsm[key] and the counts.
+record Embedding {
+    id: String
+    sample: String
+    assay: String
+    key: String
+    adata: Path
+}
+
 // One method run on one sample; id = <sample>.<assay>.<method>. `assay` is the assay that drove membership.
 record Membership {
     id: String
