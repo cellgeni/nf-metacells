@@ -26,6 +26,9 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
   quick wiring check). Test samplesheets use paths relative to the repository root, so run from there.
 - Test data: `tests/data/make_test_data.py` (its header has the `uv run` command). Synthetic only — never
   commit real data.
+- Shared I/O helper tests: `uv run --no-project --python 3.12 --with-requirements docker/scanpy/requirements.txt
+  --with pytest==9.2.0 python -m pytest shared/python -q`.
+- GPU images: `tests/gpu/run_smoke.sh` (one LSF job per GPU model); building and tagging rules in `docker/README.md`.
 
 ## Conventions
 
@@ -35,10 +38,13 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
 - Every channel item has a unique `id` (`<sample>.<assay>[.<method>.<run>]`); joins across items use `sample`.
 - One output field per processing step. In raw mode a step writes `<id>.<step>.raw/`, laid out like the AnnData
   store (`obsm/X_pca.npy`, `uns/pca.json`, …) plus `manifest.json`; slim/attach modes write one `.h5ad|.zarr`.
-- GPU: modules branch on `task.accelerator` (container + `--gpu` flag) and never set it; the pipeline config
-  sets `accelerator` from `--gpu_steps` and translates it to LSF `-gpu` options and Singularity `--nv`.
+- GPU: modules branch on `task.accelerator` (container + `--gpu` flag) and never set it. GPU-capable processes
+  carry `label 'process_gpu'`; `conf/base.config` sets `accelerator` when `--gpu_steps` names the process' step
+  (the last part of its name, lower-cased: `SCANPY_PCA` → `pca`) and adds LSF `-gpu` options and `--nv`.
+- Step scripts read and write elements through `scio.py`: edit `shared/python/scio.py` only, then run
+  `scripts/sync_shared.sh` (it copies the file into each module's `resources/usr/bin/`; CI checks the copies).
 - Containers: pinned `quay.io/cellgeni/*` tags, never `latest`, and no `docker://` prefix (the Docker engine
-  rejects it; Singularity adds it itself); Dockerfiles live in `docker/<image>/`.
+  rejects it; Singularity adds it itself); Dockerfiles and lock files live in `docker/<image>/`.
 - Versions: `topic:` records, `record(process: task.process, tool: '…', version: eval('…')) >> 'versions'`.
 - Params are flat (`seacells_min_iter`, not `seacells.min_iter`), typed in `main.nf` `params {}` and documented in
   `nextflow_schema.json`. Only params that config settings use (`outdir`, `publish_mode`) live in `nextflow.config`.
@@ -56,6 +62,8 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
   until phase 5.
 - Typed workflow bodies cannot `return`: use `exit(status, message)`. Scripts cannot have top-level variables:
   use a function. Typed functions read `def name(arg: Type) -> Type { … }`.
+- Dynamic process directives need no closure (`container task.accelerator ? GPU_IMAGE : CPU_IMAGE`); `mix` takes
+  one channel; a process called with plain values returns a `Value`, which channel operators such as `mix` refuse.
 - Config closures (`ext.args`) see the script's params at task time, but in scripts the linter only knows params
   declared in `params {}`.
 - nf-schema 3.1.0: its functions take no `workflow` argument (`paramsSummaryLog()`); `samplesheetToList` returns
@@ -73,12 +81,17 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
   exact ties); non-convergence raises `RuntimeWarning` after the labels are set; randomness comes from the global
   `np.random`. On GPU, the B update recomputes K·B in every Frank-Wolfe step (~48 s per iteration at 100k cells),
   and cuSPARSE SpGEMM in the kernel step failed once (`CUSPARSE_STATUS_INTERNAL_ERROR`) on a rerun of the same data.
+  The GPU is ~9x faster per iteration at 20k cells and ~50x at 100k. With the same seed, CPU and GPU (and the
+  dense/sparse backends) give different but equally good partitions at scale, so parity checks compare the
+  objective (RSS), purity and metacell sizes, not ARI.
 - cuSPARSE/cupyx use int32 indices: matrices with ≥ 2^31 non-zeros silently truncate on GPU — check before
   moving data to the device.
 - pandas 3 makes anndata ≥ 0.12 write string indices/columns as `nullable-string-array`, which older anndata
   (e.g. the legacy 0.9.2 images) and other readers can't open. Images and the test-data generator pin
   `pandas<3` (snapATAC2 2.10 requires it anyway) until the ecosystem catches up.
 - `cellgen/nextflow/26.10.7` is the small launcher, which downloads the framework into `~/.nextflow` on first use.
+  A new shell finds Nextflow 25.04.4 first: load 26.10.7 in the same shell, or `nextflow lint` dies with a
+  NullPointerException in `CmdLint.printErrors` instead of listing the errors.
 
 ## Git and releases
 
