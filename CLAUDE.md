@@ -37,7 +37,8 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
   store (`obsm/X_pca.npy`, `uns/pca.json`, …) plus `manifest.json`; slim/attach modes write one `.h5ad|.zarr`.
 - GPU: modules branch on `task.accelerator` (container + `--gpu` flag) and never set it; the pipeline config
   sets `accelerator` from `--gpu_steps` and translates it to LSF `-gpu` options and Singularity `--nv`.
-- Containers: pinned `quay.io/cellgeni/*` tags, never `latest`; Dockerfiles live in `docker/<image>/`.
+- Containers: pinned `quay.io/cellgeni/*` tags, never `latest`, and no `docker://` prefix (the Docker engine
+  rejects it; Singularity adds it itself); Dockerfiles live in `docker/<image>/`.
 - Versions: `topic:` records, `record(process: task.process, tool: '…', version: eval('…')) >> 'versions'`.
 - Params are flat (`seacells_min_iter`, not `seacells.min_iter`), typed in `main.nf` `params {}` and documented in
   `nextflow_schema.json`. Only params that config settings use (`outdir`, `publish_mode`) live in `nextflow.config`.
