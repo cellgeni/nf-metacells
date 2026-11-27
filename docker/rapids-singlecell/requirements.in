@@ -1,0 +1,15 @@
+# GPU scverse stack: the GPU paths of scanpy/*, atac/*, snapatac2/spectral, hmetacells, aggregate.
+# CUDA 12 builds only: the farm driver is 550 (CUDA 12.4). RAPIDS as in the seacells GPU image.
+rapids-singlecell-cu12[rapids]==0.18.1
+cudf-cu12==26.6.*
+cugraph-cu12==26.6.*
+cuml-cu12==26.6.*
+cuvs-cu12==26.6.*
+rmm-cu12==26.6.*
+cupy-cuda12x[ctk]==14.2.0
+# Same CPU stack as docker/scanpy
+scanpy==1.12.6
+anndata==0.13.4
+pandas<3
+scikit-misc
+scikit-network==0.33.5
