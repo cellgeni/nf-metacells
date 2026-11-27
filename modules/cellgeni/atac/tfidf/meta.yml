@@ -1,0 +1,65 @@
+$schema: https://raw.githubusercontent.com/nextflow-io/schemas/refs/heads/main/module/v1/schema.json
+name: cellgeni/atac/tfidf
+version: 1.0.0
+kind: Process
+description: >
+  TF-IDF of peak counts into layers/tfidf, with muon's formula (the v1 modules' ATAC preprocessing): NumPy/SciPy on
+  CPU, CuPy when the task has an accelerator. Writes a raw step directory, a slim object or a full copy
+  (ext.output_mode).
+keywords:
+  - atac
+  - anndata
+  - gpu
+  - single-cell
+license: MIT
+authors:
+  - "@claptar"
+maintainers:
+  - "@claptar"
+requires:
+  nextflow: ">=26.10.6"
+tools:
+  - scipy:
+      description: Fundamental algorithms for scientific computing in Python.
+      homepage: https://scipy.org
+      license:
+        - BSD-3-Clause
+  - cupy:
+      description: NumPy/SciPy-compatible array library for GPU-accelerated computing.
+      homepage: https://cupy.dev
+      license:
+        - MIT
+input:
+  - - name: id
+      type: string
+      description: Item id; default output prefix.
+    - name: adata
+      type: file
+      description: Base AnnData object, staged under input/.
+      pattern: "*.{h5ad,zarr}"
+    - name: counts_key
+      type: string
+      description: "Optional element with the counts: `X` (default), `layers/<name>` or `raw/X`."
+    - name: output_prefix
+      type: string
+      description: Optional output prefix (default id).
+output:
+  - - name: id
+      type: string
+      description: Item id.
+    - name: tfidf
+      type: file
+      description: >
+        `<prefix>.tfidf.raw` (raw directory with layers/tfidf and manifest.json) or `<prefix>.tfidf.h5ad|zarr`
+        (slim or attach object).
+      pattern: "*.tfidf.{raw,h5ad,zarr}"
+topics:
+  - - name: process
+      type: string
+      description: versions topic, the process name.
+    - name: tool
+      type: string
+      description: versions topic, `scipy` or `cupy` (GPU).
+    - name: version
+      type: string
+      description: versions topic, the tool version.

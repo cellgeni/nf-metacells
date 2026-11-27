@@ -1,0 +1,46 @@
+nextflow_process {
+
+    name "Test Process ATAC_TFIDF"
+    script "../main.nf"
+    process "ATAC_TFIDF"
+
+    tag "modules"
+    tag "atac/tfidf"
+
+    test("TF-IDF of peak counts, raw directory") {
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.atac', adata: file("${projectDir}/tests/data/atac.h5ad", checkIfExists: true),
+                                  counts_key: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            def manifest = new groovy.json.JsonSlurper().parse(file("${out.tfidf}/manifest.json"))
+            assertAll(
+                { assert process.success },
+                { assert file(out.tfidf).name == 'S1.atac.tfidf.raw' },
+                { assert manifest.elements['layers/tfidf'].shape == [400, 3000] },
+                { assert manifest.params.scale_factor == 10000 }
+            )
+        }
+    }
+
+    test("stub") {
+        options "-stub"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.atac', adata: file("${projectDir}/tests/data/atac.h5ad", checkIfExists: true),
+                                  counts_key: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].tfidf).name == 'S1.atac.tfidf.raw'
+        }
+    }
+}
