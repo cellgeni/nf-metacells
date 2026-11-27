@@ -231,12 +231,16 @@ def cluster_cells(
     Returns:
         np.ndarray: Cluster assignments
     """
-    # Calculate nearest neighbors
+    # Calculate nearest neighbors on at most as many components as the embedding has (a precomputed embedding, e.g.
+    # a spectral one, can be narrower than --n_components)
+    n_pcs = min(n_components, adata.obsm[components_key].shape[1])
+    if n_pcs < n_components:
+        logging.warning("%s has %d components: using all of them instead of %d", components_key, n_pcs, n_components)
     logging.info("Calculating nearest neighbors")
     sc.pp.neighbors(
         adata,
         n_neighbors=n_neighbors,
-        n_pcs=n_components,
+        n_pcs=n_pcs,
         use_rep=components_key,
         random_state=4,
     )

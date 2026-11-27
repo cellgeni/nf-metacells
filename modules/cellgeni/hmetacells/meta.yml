@@ -5,7 +5,7 @@
 
 $schema: https://raw.githubusercontent.com/nextflow-io/schemas/refs/heads/main/module/v1/schema.json
 name: cellgeni/hmetacells
-version: 1.0.0
+version: 1.0.1
 description: Hierarchical metacell aggregation for single-cell genomics data.
 keywords:
 - metacells
