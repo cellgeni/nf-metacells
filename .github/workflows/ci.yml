@@ -49,6 +49,24 @@ jobs:
       - name: Test the snapATAC2 step scripts
         run: python -m pytest tests/python/test_snapatac2.py -q
 
+  nf-test:
+    name: module nf-tests (docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: nf-core/setup-nextflow@v3
+        with:
+          version: "26.10.7"
+      - uses: nf-core/setup-nf-test@v2
+        with:
+          version: "0.9.5"
+      - name: Test the modules on CPU
+        run: nf-test test modules/cellgeni --profile docker --ci
+
   stub:
     name: stub run (${{ matrix.profile }})
     runs-on: ubuntu-latest
