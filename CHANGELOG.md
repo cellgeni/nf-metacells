@@ -31,6 +31,11 @@ the renamed parameters.
   the farm (`tests/gpu/`).
 - `scio.py`, the input/output helper of the step modules (raw directories, slim and attach objects), with tests in
   CI.
+- Representation modules with CPU and GPU paths, tested against the v1 in-memory preprocessing (scanpy, muon,
+  snapATAC2): `scanpy/normalizetotal`, `scanpy/log1p`, `scanpy/hvg`, `scanpy/pca` (with an in-memory `--scale`
+  instead of a separate scale step, which would write a dense layer), `scanpy/neighbors`, `atac/tfidf`, `atac/lsi`,
+  `snapatac2/selectfeatures` (CPU) and `snapatac2/spectral` (CuPy port of the cosine embedding on GPU). The
+  pipeline does not use them yet.
 
 ### Changed
 
