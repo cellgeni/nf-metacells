@@ -1,0 +1,48 @@
+nextflow_process {
+
+    name "Test Process SCANPY_PCA"
+    script "../main.nf"
+    process "SCANPY_PCA"
+
+    tag "modules"
+    tag "scanpy/pca"
+
+    test("PCA of X over every gene") {
+        config "./all_genes.config"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  matrix: null, mask: null, output_prefix: 'S1')
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            def manifest = new groovy.json.JsonSlurper().parse(file("${out.pca}/manifest.json"))
+            assertAll(
+                { assert process.success },
+                { assert file(out.pca).name == 'S1.pca.raw' },
+                { assert manifest.elements['obsm/X_pca'].shape == [400, 10] },
+                { assert manifest.elements['varm/PCs'].shape == [1000, 10] },
+                { assert file("${out.pca}/uns/pca.json").exists() }
+            )
+        }
+    }
+
+    test("stub") {
+        options "-stub"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  matrix: null, mask: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].pca).name == 'S1.rna.pca.raw'
+        }
+    }
+}
