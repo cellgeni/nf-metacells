@@ -2,6 +2,7 @@
 
 import argparse
 import hashlib
+import importlib.metadata
 import json
 import sys
 from pathlib import Path
@@ -295,3 +296,14 @@ def test_io_arguments():
     parser = scio.add_io_arguments(argparse.ArgumentParser())
     args = parser.parse_args(["--adata", "x.h5ad", "--prefix", "S1.rna"])
     assert (args.output_mode, args.adata_format, args.sparse_format, args.gpu) == ("raw", "h5ad", "npz", False)
+
+
+def test_command_line(base, out_dir, capsys):
+    out = write_step(base)
+    assert scio._main(["version", "anndata"]) == 0
+    assert capsys.readouterr().out.strip() == importlib.metadata.version("anndata")
+    assert scio._main(["describe", str(out)]) == 0
+    text = capsys.readouterr().out
+    assert "step test (raw), 40 cells x 30 features" in text and "obsm/X_pca  dense float32 40 x 5" in text
+    assert scio._main(["describe", str(base)]) == 0
+    assert "layers/counts" in capsys.readouterr().out

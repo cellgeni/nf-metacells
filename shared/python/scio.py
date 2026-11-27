@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Shared input/output for the nf-metacells step modules.
 
 Edit shared/python/scio.py only: scripts/sync_shared.sh copies it into each module's resources/usr/bin/ (modules are
@@ -20,6 +21,11 @@ Raw files: dense arrays .npy; sparse matrices .npz (uncompressed) or .mtx; obs/v
 uns entries to uns/<key>.json. The manifest records the shape, digests of the obs and var names, every element's
 file, encoding and dtype, the step parameters and tool versions. Slim and attach objects keep the same manifest as
 a JSON string in uns['nf_metacells'][<step>].
+
+Command line (modules ship scio.py on their PATH):
+
+    scio.py version <distribution>    installed version, for the versions topic of a module
+    scio.py describe <path>           elements of a step output or AnnData store, with shapes and dtypes
 """
 
 from __future__ import annotations
@@ -32,6 +38,7 @@ import logging
 import platform
 import re
 import shutil
+import sys
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
@@ -658,3 +665,37 @@ def versions(*packages: str) -> dict[str, str]:
 
 def setup_logging(level: int = logging.INFO) -> None:
     logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(name)s: %(message)s", datefmt="%H:%M:%S")
+
+
+def describe(path: str | Path) -> list[str]:
+    """One line per element of a step output or AnnData store."""
+    store = open_store(path)
+    lines = []
+    if isinstance(store, RawStore):
+        m = store.manifest
+        lines.append(f"{store.path}: step {m['step']} ({m['mode']}), {m['n_obs']} cells x {m['n_vars']} features")
+        for key, spec in m["elements"].items():
+            shape = " x ".join(map(str, spec.get("shape", [])))
+            lines.append(f"  {key}  {spec['encoding']} {spec.get('dtype', '')} {shape}".rstrip())
+        return lines
+    obs, var = store.names("obs"), store.names("var")
+    lines.append(f"{store.path}: {store.kind}, {len(obs)} cells x {len(var)} features")
+    lines += [f"  {key}" for key in store.keys()]
+    return lines
+
+
+def _main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="scio.py", description="nf-metacells step input/output helper")
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("version", help="print the installed version of a distribution").add_argument("distribution")
+    commands.add_parser("describe", help="list the elements of a step output or AnnData store").add_argument("path")
+    args = parser.parse_args(argv)
+    if args.command == "version":
+        print(importlib.metadata.version(args.distribution))
+    else:
+        print("\n".join(describe(args.path)))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(_main())
