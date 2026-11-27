@@ -448,7 +448,7 @@ class Writer:
         return self
 
     def write(self, params: dict[str, Any] | None = None, versions: dict[str, str] | None = None) -> Path:
-        if not self.elements:
+        if not self.elements and self.mode != "attach":  # attach mode with nothing new is a copy with a manifest
             raise ValueError("nothing to write: add elements first")
         out = self.path
         if out.is_dir():

@@ -259,6 +259,8 @@ def test_writer_checks_what_it_is_given(base, out_dir):
         scio.Writer(scio.Reader(base), "check", "S1", mode="copy")
     with pytest.raises(ValueError, match="nothing to write"):
         scio.Writer(scio.Reader(base), "empty", "S1").write()
+    copy = scio.Writer(scio.Reader(base), "copy", "S1", mode="attach", adata_format=base.suffix[1:]).write()
+    assert set(manifest_of(copy)) == {"copy"}
 
 
 def test_columns_are_positional(base, out_dir):
