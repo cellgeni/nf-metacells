@@ -34,8 +34,14 @@ the renamed parameters.
 - Representation modules with CPU and GPU paths, tested against the v1 in-memory preprocessing (scanpy, muon,
   snapATAC2): `scanpy/normalizetotal`, `scanpy/log1p`, `scanpy/hvg`, `scanpy/pca` (with an in-memory `--scale`
   instead of a separate scale step, which would write a dense layer), `scanpy/neighbors`, `atac/tfidf`, `atac/lsi`,
-  `snapatac2/selectfeatures` (CPU) and `snapatac2/spectral` (CuPy port of the cosine embedding on GPU). The
-  pipeline does not use them yet.
+  `snapatac2/selectfeatures` (CPU) and `snapatac2/spectral` (CuPy port of the cosine embedding on GPU), and
+  `anndata/assemble` (a base object plus step outputs in one copy).
+- `--atac_embedding lsi|spectral`: ATAC methods can run on snapATAC2's spectral embedding.
+- `--rna_counts_key`, `--atac_counts_key` (counts in `X`, `layers/<name>` or `raw/X`), representation options
+  (`--normalize_target_sum`, `--hvg_flavor`, `--hvg_batch_key`, `--pca_scale`, `--tfidf_scale_factor`,
+  `--lsi_drop_first`, `--select_*`, `--spectral_*`, `--seed`) and step output formats (`--output_mode`,
+  `--adata_format`, `--sparse_format`).
+- Representation step outputs under `<sample>/<assay>/` and their index `representations.csv`.
 
 ### Changed
 
@@ -46,6 +52,9 @@ the renamed parameters.
 - 10x inputs (`.h5` files, mtx folders) are detected and converted with adata-cli, replacing
   `ToH5ad`/`AttachCellMetadata`; ATAC keeps its peaks. A bare `.mtx` file is no longer accepted; give its folder.
 - Barcode suffixes are applied once, at ingestion (raw inputs used to be suffixed twice).
+- The membership assay's embedding is computed by the representation modules, one step per task, and SEACells and
+  hmetacells read it (`--precomputed`) instead of preprocessing internally; on the test data hmetacells gives the
+  same metacells as 0.1.0.
 - Outputs go to `<outdir>/<sample>/<method>/` (Nextflow output block, copied by default; `--publish_mode`), run
   reports to `<outdir>/pipeline_info/`.
 - Typed Nextflow (records, typed parameters, strict configuration); requires Nextflow 26.10.6 or later.
