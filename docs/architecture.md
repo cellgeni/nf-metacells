@@ -94,6 +94,30 @@ record Membership { id; sample; basis; method; run; membership; extras }
   pipeline config adds `-gpu "mode=shared:j_exclusive=yes:gmem=…:num=1"`, the GPU queue and Singularity `--nv`.
 - Farm constraints: driver 550 (CUDA 12.4) → CUDA 12 builds only; rapids-singlecell ≥ 0.15 lacks V100 kernels
   → `gpu_gmem` ≥ 40000 MB so jobs land on A100/H100.
+- `auto` is `neighbors,lsi,spectral,seacells,hmetacells`: the steps whose GPU gain is large and grows with the
+  data. A GPU task waits 12–52 minutes in the farm's `gpu` queue, so a step earns a GPU only when it saves far
+  more than that at scale. Measured on an H100 (synthetic 20k cells × 3000 genes, 20k × 50k peaks) and on
+  tic-4677 (6–9k cells × 36.6k genes, 1.3–9.1k × 1.15M peaks):
+
+  | step | CPU | GPU | |
+  |---|---|---|---|
+  | `neighbors` | 28–118 s | 0.3–0.5 s | 65–246×, the largest gain of any step |
+  | `lsi` | 68 s / 16 min | 2–3 s / 15 s | 22–31× at 50k peaks, 64× at 1.15M |
+  | `spectral` | 33–37 s | 1.1–1.9 s | 19–30× |
+  | `pca` | 10 s / 12 s | 1.1–4.2 s / 16 s | 2.4–9.4×, and nothing on real data: it runs on the HVG subset, so it stays small |
+  | `tfidf` | 3.5 s / 36 s | 3.4–4.2 s / 19 s | 1.9× at best |
+  | `normalizetotal`, `log1p`, `hvg` | 0.4–20 s | 0.3–14 s | seconds either way |
+
+  The ranges are two H100 runs of the same check: CPU times move a lot with node load (`neighbors` 118 s and
+  28 s on the same data), GPU times hardly at all, so treat the speed-ups as lower bounds on a loaded farm.
+
+  Of those five, only `lsi` and `spectral` are wired in phase 4; `neighbors` has a module but no caller yet, and
+  `seacells` and `hmetacells` reach a GPU when phase 5 replaces the v1 modules, which carry no `process_gpu`
+  label. `--gpu_steps all` is a trap: the four RNA steps then spend 6 h 15 of queue wait between them and a
+  20-minute CPU run does not finish in 1 h 30.
+- One module per step costs about 20 s of scheduling and 1.5 GB of I/O per sample over the RNA chain (each step
+  re-reads ~300 MB and writes ~220 MB). Against a method step of 19–43 minutes that is noise, so the RNA steps
+  stay separate; fusing them would only pay off if they ran on a GPU, which these timings say they should not.
 
 ## Adding a metacell method
 
@@ -114,7 +138,7 @@ Labels have two roles: `--constrain_by` (build metacells within groups) and `--e
 | 1 | adata-cli ingestion (`adata/convert`, `adata/attachobs`) | done |
 | 2 | Typed pipeline skeleton, nf-schema, output block | done: the v1 SEACells/hmetacells modules still preprocess internally |
 | 3 | Containers, GPU plumbing, shared I/O helper | done: CPU images from Seqera Containers (Wave), CUDA images on quay.io |
-| 4 | Representation modules (CPU + GPU) | in progress: modules and wiring done (the v1 methods read the computed embedding); GPU parity on the farm and real-data timings pending |
+| 4 | Representation modules (CPU + GPU) | done: the v1 methods read the computed embedding until phase 5; CPU/GPU parity within thresholds on an H100, and the timings above set `--gpu_steps auto` |
 | 5 | SEACells/hmetacells 2.0, aggregate, evaluate, assemble | – |
 | 6 | Registry publishing, docs, first calendar release | – |
 | 7 | New methods: k-means, MetaQ, SuperCell, MC2, mcRigor, EpiCarousel, LSMetacell | – |
