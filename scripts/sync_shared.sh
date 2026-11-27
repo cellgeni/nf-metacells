@@ -22,14 +22,15 @@ while IFS= read -r copy; do copies+=("$copy"); done < <(find modules -path '*/re
 
 drift=0
 for copy in $(printf '%s\n' "${copies[@]}" | sort -u); do
-    if cmp -s "$shared" "$copy"; then
+    # Modules run scio.py as a command too (scio.py version ...), so copies must be executable
+    if cmp -s "$shared" "$copy" && [[ -x "$copy" ]]; then
         continue
     elif $check; then
-        echo "out of date: $copy (run scripts/sync_shared.sh)" >&2
+        echo "out of date or not executable: $copy (run scripts/sync_shared.sh)" >&2
         drift=1
     else
         mkdir -p "$(dirname "$copy")"
-        cp "$shared" "$copy"
+        install -m 755 "$shared" "$copy"
         echo "updated $copy"
     fi
 done
