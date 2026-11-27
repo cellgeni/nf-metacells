@@ -1,0 +1,58 @@
+nextflow_process {
+
+    name "Test Process SCANPY_LOG1P"
+    script "../main.nf"
+    process "SCANPY_LOG1P"
+
+    tag "modules"
+    tag "scanpy/log1p"
+
+    test("log1p of a normalizetotal raw directory") {
+        setup {
+            run("SCANPY_NORMALIZETOTAL") {
+                script "../../normalizetotal/main.nf"
+                process {
+                    """
+                    input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                      counts_key: null, output_prefix: null)
+                    """
+                }
+            }
+        }
+        when {
+            process {
+                """
+                input[0] = SCANPY_NORMALIZETOTAL.out.map { r ->
+                    record(id: r.id, adata: file("${projectDir}/tests/data/rna.h5ad"), normalized: r.normalized, output_prefix: null)
+                }
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            def manifest = new groovy.json.JsonSlurper().parse(file("${out.log1p}/manifest.json"))
+            assertAll(
+                { assert process.success },
+                { assert file(out.log1p).name == 'S1.rna.log1p.raw' },
+                { assert file("${out.log1p}/layers/log1p.npz").exists() },
+                { assert manifest.params.layer_key == 'layers/normalized' }
+            )
+        }
+    }
+
+    test("stub") {
+        options "-stub"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  normalized: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].log1p).name == 'S1.rna.log1p.raw'
+        }
+    }
+}

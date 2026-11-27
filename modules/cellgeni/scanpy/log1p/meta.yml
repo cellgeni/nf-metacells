@@ -1,0 +1,65 @@
+$schema: https://raw.githubusercontent.com/nextflow-io/schemas/refs/heads/main/module/v1/schema.json
+name: cellgeni/scanpy/log1p
+version: 1.0.0
+kind: Process
+description: >
+  Log-transforms a normalised layer, log(1 + x), into layers/log1p, with scanpy on CPU or rapids-singlecell on a GPU (task.accelerator). Writes a raw step directory, a slim
+  object or a full copy (ext.output_mode).
+keywords:
+  - anndata
+  - scanpy
+  - rapids-singlecell
+  - gpu
+  - single-cell
+license: MIT
+authors:
+  - "@claptar"
+maintainers:
+  - "@claptar"
+requires:
+  nextflow: ">=26.10.6"
+tools:
+  - scanpy:
+      description: Single-cell analysis in Python.
+      homepage: https://scanpy.readthedocs.io
+      license:
+        - BSD-3-Clause
+  - rapids-singlecell:
+      description: GPU-accelerated single-cell analysis with RAPIDS.
+      homepage: https://rapids-singlecell.readthedocs.io
+      license:
+        - MIT
+input:
+  - - name: id
+      type: string
+      description: Item id; default output prefix.
+    - name: adata
+      type: file
+      description: Base AnnData object, staged under input/.
+      pattern: "*.{h5ad,zarr}"
+    - name: normalized
+      type: file
+      description: "Optional step output with the normalised layer (default: the base object)."
+    - name: output_prefix
+      type: string
+      description: Optional output prefix (default id).
+output:
+  - - name: id
+      type: string
+      description: Item id.
+    - name: log1p
+      type: file
+      description: >
+        `<prefix>.log1p.raw` (raw directory with layers/log1p and manifest.json) or `<prefix>.log1p.h5ad|zarr`
+        (slim or attach object).
+      pattern: "*.log1p.{raw,h5ad,zarr}"
+topics:
+  - - name: process
+      type: string
+      description: versions topic, the process name.
+    - name: tool
+      type: string
+      description: versions topic, `scanpy` or `rapids-singlecell` (GPU).
+    - name: version
+      type: string
+      description: versions topic, the tool version.
