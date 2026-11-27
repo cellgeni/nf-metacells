@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import scipy.sparse as sp
 
 snap = pytest.importorskip("snapatac2")
 import anndata as ad  # noqa: E402
@@ -49,6 +50,24 @@ def test_spectral_on_every_feature_with_nystrom(workdir):
     run("spectral", "--adata", DATA, "--prefix", "S1", "--all-features", "--n-comps", "10", "--sample-size", "200")
     embedding = scio.Reader(DATA, ["S1.spectral.raw"]).read("obsm/X_spectral")
     assert embedding.shape[0] == 400 and 1 <= embedding.shape[1] <= 10
+
+
+def test_csc_input_matches_csr(workdir):
+    """Real ATAC files are often stored CSC, which snapATAC2's Rust backend refuses: the CPU path converts first."""
+    csc = workdir / "atac_csc.h5ad"
+    adata = ad.read_h5ad(DATA)
+    adata.X = sp.csc_matrix(adata.X)
+    adata.write_h5ad(csc)
+    for prefix, path in [("csc", csc), ("csr", DATA)]:
+        run("selectfeatures", "--adata", path, "--prefix", prefix, "--n-features", "2000")
+        run("spectral", "--adata", path, "--prefix", prefix, "--selected", f"{prefix}.selectfeatures.raw",
+            "--n-comps", "20")
+
+    got = scio.Reader(csc, ["csc.selectfeatures.raw", "csc.spectral.raw"])
+    want = scio.Reader(DATA, ["csr.selectfeatures.raw", "csr.spectral.raw"])
+    assert (got.read("var/selected").to_numpy() == want.read("var/selected").to_numpy()).all()
+    np.testing.assert_allclose(got.read("uns/spectral_eigenvalue"), want.read("uns/spectral_eigenvalue"), rtol=1e-6)
+    np.testing.assert_allclose(got.read("obsm/X_spectral"), want.read("obsm/X_spectral"), rtol=1e-4, atol=1e-5)
 
 
 def test_gpu_path_refuses_what_it_does_not_port(workdir):

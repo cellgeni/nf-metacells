@@ -100,6 +100,9 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
   The GPU is ~9x faster per iteration at 20k cells and ~50x at 100k. With the same seed, CPU and GPU (and the
   dense/sparse backends) give different but equally good partitions at scale, so parity checks compare the
   objective (RSS), purity and metacell sizes, not ARI.
+- snapATAC2's Rust backend takes CSR only: `snap.tl.spectral` on a CSC matrix raises `Cannot convert
+  CscMatrix(F64) to DynCsrMatrix`, on big inputs only after an hour or two of work. Real ATAC files are often
+  stored CSC (every tic-4677 one is) while the synthetic test data is CSR, so convert before calling it.
 - cuSPARSE/cupyx use int32 indices: matrices with ≥ 2^31 non-zeros silently truncate on GPU — check before
   moving data to the device.
 - pandas 3 makes anndata ≥ 0.12 write string indices/columns as `nullable-string-array`, which older anndata

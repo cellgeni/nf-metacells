@@ -100,10 +100,15 @@ def main(argv: list[str] | None = None) -> int:
         evals, evecs = spectral_gpu(counts[:, np.flatnonzero(mask)], n_comps, weighted, args.seed)
     else:
         import anndata as ad
+        import scipy.sparse as sp
         import snapatac2 as snap
 
         sample_size = None if args.sample_size is None else (
             args.sample_size if args.sample_size <= 1 else int(args.sample_size))
+        # snapATAC2's Rust backend takes CSR only; real ATAC files are often stored CSC. Convert before the cast,
+        # so the float64 copy is made once and in the layout snapATAC2 wants.
+        if sp.issparse(counts) and counts.format != "csr":
+            counts = counts.tocsr()
         adata = ad.AnnData(X=counts.astype(np.float64))
         evals, evecs = snap.tl.spectral(
             adata, n_comps=n_comps, features=mask, random_state=args.seed, sample_size=sample_size,
