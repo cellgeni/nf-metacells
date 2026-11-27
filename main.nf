@@ -7,7 +7,7 @@ nextflow.enable.types = true
 
 include { paramsHelp; paramsSummaryLog; samplesheetToList; validateParameters } from 'plugin/nf-schema'
 include { METACELLS } from './workflows/metacells'
-include { AssayState; Membership; MethodFiles } from './workflows/types'
+include { AssayState; Membership; MethodFiles; StepOutput } from './workflows/types'
 
 // Documented in nextflow_schema.json. Parameters that only configuration uses (`outdir`, `publish_mode` and the
 // GPU settings) are declared in nextflow.config.
@@ -18,6 +18,8 @@ params {
     barcode_column: String = 'obs_names'
     barcode_delimiter: String?
     allow_dtype_change: Boolean = false
+    rna_counts_key: String = 'X'
+    atac_counts_key: String = 'X'
 
     // Methods
     methods: String = 'seacells'
@@ -26,11 +28,31 @@ params {
     constrain_by: String?
     eval_labels: String?
 
-    // Representation (computed inside the methods until the per-step modules land)
+    // Representation of the membership assay (skipped when embedding_key names an obsm key of the input)
     embedding_key: String?
+    normalize_target_sum: Float = 10000.0
+    hvg_flavor: String = 'seurat'
     hvg_n_top_genes: Integer = 2000
+    hvg_batch_key: String?
     pca_n_comps: Integer = 50
+    pca_scale: Boolean = false
+    atac_embedding: String = 'lsi'
+    tfidf_scale_factor: Float = 10000.0
     lsi_n_comps: Integer = 50
+    lsi_drop_first: Boolean = false
+    select_n_features: Integer = 500000
+    select_filter_lower_quantile: Float = 0.005
+    select_filter_upper_quantile: Float = 0.005
+    spectral_n_comps: Integer = 30
+    spectral_distance_metric: String = 'cosine'
+    spectral_sample_size: Float?
+    spectral_weighted_by_sd: Boolean = true
+    seed: Integer = 0
+
+    // Step outputs
+    output_mode: String = 'raw'
+    adata_format: String = 'h5ad'
+    sparse_format: String = 'npz'
 
     // SEACells
     seacells_n_metacells: Integer?
@@ -72,10 +94,14 @@ workflow {
     samples = channel.fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
         .map { row -> record(id: row[0], rna: row[1] ?: null, atac: row[2] ?: null, metadata: row[3] ?: null) }
 
-    run = METACELLS(samples, methods, params.membership_assay, params.cell_metadata, params.barcode_delimiter)
+    run = METACELLS(
+        samples, methods, params.membership_assay, params.cell_metadata, params.barcode_delimiter,
+        params.embedding_key, params.atac_embedding, params.rna_counts_key, params.atac_counts_key
+    )
 
     publish:
     ingested = run.written
+    representations = run.representations
     memberships = run.memberships
     method_files = run.extras
     versions = channel.topic('versions').unique()
@@ -86,6 +112,13 @@ output {
         path { st -> "${st.sample}/ingest" }
         index {
             path 'ingested.csv'
+            header true
+        }
+    }
+    representations: Channel<StepOutput> {
+        path { o -> "${o.sample}/${o.assay}" }
+        index {
+            path 'representations.csv'
             header true
         }
     }

@@ -55,6 +55,18 @@
           "description": "Rename barcodes to <barcode><delimiter><sample id>, keeping the originals in obs['barcode'].",
           "help_text": "Makes barcodes unique across samples and adds a `sample` obs column."
         },
+        "rna_counts_key": {
+          "type": "string",
+          "default": "X",
+          "pattern": "^(X|raw/X|layers/[^/]+)$",
+          "description": "Where the RNA counts are: X, layers/<name> or raw/X."
+        },
+        "atac_counts_key": {
+          "type": "string",
+          "default": "X",
+          "pattern": "^(X|raw/X|layers/[^/]+)$",
+          "description": "Where the ATAC counts are: X, layers/<name> or raw/X."
+        },
         "allow_dtype_change": {
           "type": "boolean",
           "description": "Accept digit-only categorical obs columns becoming integers when attaching metadata (cellgeni/adata-cli#124).",
@@ -100,11 +112,23 @@
       "title": "Representation",
       "type": "object",
       "fa_icon": "fas fa-project-diagram",
-      "description": "The embedding the methods build metacells on: PCA for RNA, LSI for ATAC, or one already in the object.",
+      "description": "The embedding of the membership assay that the methods build metacells on: PCA for RNA; LSI or a spectral embedding for ATAC; or one already in the object.",
       "properties": {
         "embedding_key": {
           "type": "string",
-          "description": "obsm key of an embedding already in the object (skips normalisation and PCA/LSI)."
+          "description": "obsm key of an embedding already in the object, e.g. X_pca (skips the representation steps)."
+        },
+        "normalize_target_sum": {
+          "type": "number",
+          "default": 10000.0,
+          "exclusiveMinimum": 0,
+          "description": "Total counts per cell after normalisation (RNA)."
+        },
+        "hvg_flavor": {
+          "type": "string",
+          "default": "seurat",
+          "enum": ["seurat", "cell_ranger", "seurat_v3", "seurat_v3_paper"],
+          "description": "Highly variable gene method (RNA); the seurat_v3 flavours read the counts."
         },
         "hvg_n_top_genes": {
           "type": "integer",
@@ -112,17 +136,109 @@
           "minimum": 2,
           "description": "Number of highly variable genes (RNA)."
         },
+        "hvg_batch_key": {
+          "type": "string",
+          "description": "obs column: select highly variable genes within each batch, then merge (RNA)."
+        },
         "pca_n_comps": {
           "type": "integer",
           "default": 50,
           "minimum": 2,
           "description": "Number of principal components (RNA)."
         },
+        "pca_scale": {
+          "type": "boolean",
+          "default": false,
+          "description": "Scale the highly variable genes to unit variance (clipped at 10) before PCA (RNA)."
+        },
+        "atac_embedding": {
+          "type": "string",
+          "default": "lsi",
+          "enum": ["lsi", "spectral"],
+          "description": "ATAC embedding: TF-IDF + LSI (as muon) or snapATAC2's spectral embedding of selected features."
+        },
+        "tfidf_scale_factor": {
+          "type": "number",
+          "default": 10000.0,
+          "exclusiveMinimum": 0,
+          "description": "Multiplies the term frequencies before their log (ATAC, lsi)."
+        },
         "lsi_n_comps": {
           "type": "integer",
           "default": 50,
           "minimum": 2,
-          "description": "Number of LSI components (ATAC)."
+          "description": "Number of LSI components (ATAC, lsi)."
+        },
+        "lsi_drop_first": {
+          "type": "boolean",
+          "default": false,
+          "description": "Drop the first LSI component, which mostly tracks sequencing depth (ATAC, lsi)."
+        },
+        "select_n_features": {
+          "type": "integer",
+          "default": 500000,
+          "minimum": 2,
+          "description": "Number of most accessible features to select (ATAC, spectral)."
+        },
+        "select_filter_lower_quantile": {
+          "type": "number",
+          "default": 0.005,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Drop this quantile of the least accessible features first (ATAC, spectral)."
+        },
+        "select_filter_upper_quantile": {
+          "type": "number",
+          "default": 0.005,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Drop this quantile of the most accessible features first (ATAC, spectral)."
+        },
+        "spectral_n_comps": {
+          "type": "integer",
+          "default": 30,
+          "minimum": 2,
+          "description": "Number of spectral components; fewer are kept when eigenvalues are not positive (ATAC, spectral)."
+        },
+        "spectral_distance_metric": {
+          "type": "string",
+          "default": "cosine",
+          "enum": ["cosine", "jaccard"],
+          "description": "Similarity of the spectral embedding; jaccard is quadratic in cells, use it with spectral_sample_size."
+        },
+        "spectral_sample_size": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Nystrom landmark cells for the spectral embedding: a count, or a fraction up to 1 (CPU only)."
+        },
+        "spectral_weighted_by_sd": {
+          "type": "boolean",
+          "default": true,
+          "description": "Scale spectral eigenvectors by the square root of their eigenvalues, dropping non-positive ones."
+        },
+        "seed": {
+          "type": "integer",
+          "default": 0,
+          "description": "Random seed of PCA and the spectral embedding."
+        },
+        "output_mode": {
+          "type": "string",
+          "default": "raw",
+          "enum": ["raw", "slim", "attach"],
+          "description": "Step outputs: raw directories laid out like the AnnData store, slim objects, or full copies.",
+          "help_text": "raw writes one file per element (.npy, .npz/.mtx, .csv, .json) and a manifest; slim writes an object with only the new elements; attach writes the whole object again for every step."
+        },
+        "adata_format": {
+          "type": "string",
+          "default": "h5ad",
+          "enum": ["h5ad", "zarr"],
+          "description": "Object format of slim and attach step outputs."
+        },
+        "sparse_format": {
+          "type": "string",
+          "default": "npz",
+          "enum": ["npz", "mtx"],
+          "description": "Sparse matrix files in raw step outputs."
         }
       }
     },
