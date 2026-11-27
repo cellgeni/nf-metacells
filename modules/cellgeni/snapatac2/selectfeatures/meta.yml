@@ -1,0 +1,59 @@
+$schema: https://raw.githubusercontent.com/nextflow-io/schemas/refs/heads/main/module/v1/schema.json
+name: cellgeni/snapatac2/selectfeatures
+version: 1.0.0
+kind: Process
+description: >
+  Marks informative peaks or tiles in var/selected with snapATAC2 select_features; never subsets: snapATAC2 on CPU.
+  Writes a raw step directory, a slim object or a full copy (ext.output_mode).
+keywords:
+  - atac
+  - anndata
+  - snapatac2
+  - single-cell
+license: MIT
+authors:
+  - "@claptar"
+maintainers:
+  - "@claptar"
+requires:
+  nextflow: ">=26.10.6"
+tools:
+  - snapatac2:
+      description: Single-cell epigenomics analysis.
+      homepage: https://scverse.org/SnapATAC2
+      license:
+        - MIT
+input:
+  - - name: id
+      type: string
+      description: Item id; default output prefix.
+    - name: adata
+      type: file
+      description: Base AnnData object, staged under input/.
+      pattern: "*.{h5ad,zarr}"
+    - name: counts_key
+      type: string
+      description: "Optional element with the counts: `X` (default), `layers/<name>` or `raw/X`."
+    - name: output_prefix
+      type: string
+      description: Optional output prefix (default id).
+output:
+  - - name: id
+      type: string
+      description: Item id.
+    - name: selected
+      type: file
+      description: >
+        `<prefix>.selectfeatures.raw` (raw directory with var/selected, uns/selectfeatures and manifest.json) or `<prefix>.selectfeatures.h5ad|zarr`
+        (slim or attach object).
+      pattern: "*.selectfeatures.{raw,h5ad,zarr}"
+topics:
+  - - name: process
+      type: string
+      description: versions topic, the process name.
+    - name: tool
+      type: string
+      description: versions topic, `snapatac2`.
+    - name: version
+      type: string
+      description: versions topic, the tool version.

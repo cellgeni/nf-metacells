@@ -1,0 +1,45 @@
+nextflow_process {
+
+    name "Test Process SNAPATAC2_SELECTFEATURES"
+    script "../main.nf"
+    process "SNAPATAC2_SELECTFEATURES"
+
+    tag "modules"
+    tag "snapatac2/selectfeatures"
+
+    test("select 2000 peaks, slim zarr") {
+        config "./selectfeatures.config"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.atac', adata: file("${projectDir}/tests/data/atac.h5ad", checkIfExists: true),
+                                  counts_key: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            assertAll(
+                { assert process.success },
+                { assert file(out.selected).name == 'S1.atac.selectfeatures.zarr' },
+                { assert file("${out.selected}/var/selected").isDirectory() }
+            )
+        }
+    }
+
+    test("stub") {
+        options "-stub"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.atac', adata: file("${projectDir}/tests/data/atac.h5ad", checkIfExists: true),
+                                  counts_key: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].selected).name == 'S1.atac.selectfeatures.raw'
+        }
+    }
+}
