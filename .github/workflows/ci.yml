@@ -24,3 +24,22 @@ jobs:
           version: "26.10.7"
       - name: Lint pipeline, modules and configs
         run: nextflow lint -o concise .
+
+  stub:
+    name: stub run (${{ matrix.profile }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [test, test_atac, test_paired, test_10x]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: nf-core/setup-nextflow@v3
+        with:
+          version: "26.10.7"
+      - name: Stub run of the test profile
+        run: nextflow run . -profile ${{ matrix.profile }},docker -stub-run --outdir results
