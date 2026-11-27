@@ -1,0 +1,58 @@
+$schema: https://raw.githubusercontent.com/nextflow-io/schemas/refs/heads/main/module/v1/schema.json
+name: cellgeni/anndata/assemble
+version: 1.0.0
+kind: Process
+description: >
+  Assembles a base AnnData object and step outputs (raw directories, slim or full objects) into one object: a copy of
+  the base with every element of the step outputs written into it, and their manifests in uns['nf_metacells'].
+keywords:
+  - anndata
+  - h5ad
+  - zarr
+  - single-cell
+license: MIT
+authors:
+  - "@claptar"
+maintainers:
+  - "@claptar"
+requires:
+  nextflow: ">=26.10.6"
+tools:
+  - anndata:
+      description: Annotated data matrices in memory and on disk.
+      homepage: https://anndata.readthedocs.io
+      license:
+        - BSD-3-Clause
+input:
+  - - name: id
+      type: string
+      description: Item id; default output prefix.
+    - name: adata
+      type: file
+      description: Base AnnData object, staged under input/.
+      pattern: "*.{h5ad,zarr}"
+    - name: sources
+      type: file
+      description: "Step outputs to add, in order (later ones win); may be empty."
+      pattern: "*.{raw,h5ad,zarr}"
+    - name: output_prefix
+      type: string
+      description: Optional output prefix (default id).
+output:
+  - - name: id
+      type: string
+      description: Item id.
+    - name: assembled
+      type: file
+      description: The assembled object, `<prefix>.assemble.h5ad` or `.zarr`.
+      pattern: "*.assemble.{h5ad,zarr}"
+topics:
+  - - name: process
+      type: string
+      description: versions topic, the process name.
+    - name: tool
+      type: string
+      description: versions topic, `anndata`.
+    - name: version
+      type: string
+      description: versions topic, the anndata version.

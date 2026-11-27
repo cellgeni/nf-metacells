@@ -1,0 +1,58 @@
+nextflow_process {
+
+    name "Test Process ANNDATA_ASSEMBLE"
+    script "../main.nf"
+    process "ANNDATA_ASSEMBLE"
+
+    tag "modules"
+    tag "anndata/assemble"
+
+    test("base object and a PCA raw directory") {
+        config "./assemble.config"
+        setup {
+            run("SCANPY_PCA") {
+                script "../../../scanpy/pca/main.nf"
+                process {
+                    """
+                    input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                      matrix: null, mask: null, output_prefix: null)
+                    """
+                }
+            }
+        }
+        when {
+            process {
+                """
+                input[0] = SCANPY_PCA.out.map { r ->
+                    record(id: r.id, adata: file("${projectDir}/tests/data/rna.h5ad"), sources: [r.pca], output_prefix: null)
+                }
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            assertAll(
+                { assert process.success },
+                { assert file(out.assembled).name == 'S1.rna.assemble.zarr' },
+                { assert file("${out.assembled}/obsm/X_pca").isDirectory() },
+                { assert file("${out.assembled}/X").isDirectory() }
+            )
+        }
+    }
+
+    test("stub") {
+        options "-stub"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  sources: [], output_prefix: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].assembled).name == 'S1.rna.assemble.h5ad'
+        }
+    }
+}
