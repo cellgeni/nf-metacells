@@ -24,6 +24,13 @@ the renamed parameters.
   sample with overlapping barcodes, counts in `layers/counts`, a 10x multiome `.h5`, a 10x mtx folder and cell
   metadata.
 - nf-test configuration and a CI workflow that lints the pipeline with Nextflow 26.10.7.
+- GPU job settings `--gpu_steps`, `--gpuqueue`, `--gpu_gmem` and `--costcode` for the GPU-capable steps of the
+  coming per-step modules (no step has a GPU path yet).
+- Dockerfiles and lock files for the images of the per-step modules (`docker/`): scanpy 1.12.6, rapids-singlecell
+  0.18.1 (CUDA 12), snapATAC2 2.10.0 and SEACells a1173c8 (CPU and GPU), all on Python 3.12; GPU smoke tests for
+  the farm (`tests/gpu/`).
+- `scio.py`, the input/output helper of the step modules (raw directories, slim and attach objects), with tests in
+  CI.
 
 ### Changed
 
