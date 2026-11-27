@@ -48,8 +48,11 @@ Paths may be absolute or relative to the launch directory.
 | `--metacell_size` | `75` | Target cells per metacell (SEACells); `--seacells_n_metacells` sets the number instead |
 | `--constrain_by` | – | obs column to build metacells within (required by `hmetacells`) |
 | `--eval_labels` | – | obs column used to report metacell purity (SEACells) |
-| `--embedding_key` | – | obsm key of an existing embedding to use instead of PCA/LSI |
-| `--hvg_n_top_genes`, `--pca_n_comps`, `--lsi_n_comps` | 2000, 50, 50 | Embedding settings |
+| `--embedding_key` | – | obsm key of an existing embedding to use instead of computing one |
+| `--atac_embedding` | `lsi` | ATAC embedding: `lsi` (TF-IDF + LSI, as muon) or `spectral` (snapATAC2) |
+| `--hvg_n_top_genes`, `--pca_n_comps`, `--lsi_n_comps`, `--spectral_n_comps` | 2000, 50, 50, 30 | Embedding sizes |
+| `--rna_counts_key`, `--atac_counts_key` | `X` | Where the counts are: `X`, `layers/<name>` or `raw/X` |
+| `--gpu_steps` | `none` | Steps that run on a GPU: `none`, `auto`, `all` or a list (e.g. `pca,lsi,spectral`); A100/H100 only |
 | `--cell_metadata` | – | CSV for all samples (`barcode`, `sample_id`, annotations); cells without metadata are dropped |
 | `--barcode_column` | `obs_names` | obs column matched to the metadata barcodes |
 | `--barcode_delimiter` | – | Rename barcodes to `<barcode><delimiter><id>` (originals kept in `obs['barcode']`, the id in `obs['sample']`) |
@@ -59,8 +62,14 @@ SEACells options start with `seacells_` (`n_metacells`, `n_waypoint_eigs`, `conv
 `max_iter`, `use_sparse`) and hierarchical-metacell options with `hmetacells_` (`n_min`, `n_max`, `method`,
 `n_neighbors`); `--helpFull` describes them all.
 
-Until the per-step modules land, each method runs on one assay per sample (`--membership_assay`) and computes its
-own embedding (RNA: normalise, log1p, highly variable genes, PCA; ATAC: TF-IDF, LSI).
+Representation options (`normalize_target_sum`, `hvg_flavor`, `hvg_batch_key`, `pca_scale`, `tfidf_scale_factor`,
+`lsi_drop_first`, `select_*`, `spectral_*`, `seed`) and the format of step outputs (`--output_mode raw|slim|attach`,
+`--adata_format`, `--sparse_format`) are also in `--helpFull`.
+
+Each method runs on one assay per sample (`--membership_assay`). The pipeline computes that assay's embedding one
+step per task (RNA: normalise, log1p, highly variable genes, PCA; ATAC: TF-IDF and LSI, or feature selection and a
+spectral embedding), each with a CPU and a GPU path; until the methods are rewritten (roadmap phase 5) they read the
+embedding from a copy of the input object.
 
 ## Outputs
 
@@ -68,11 +77,14 @@ own embedding (RNA: normalise, log1p, highly variable genes, PCA; ATAC: TF-IDF, 
 results/
 ├── <sample>/
 │   ├── ingest/<sample>.<assay>.h5ad    AnnData the pipeline wrote (converted from 10x and/or with metadata attached)
+│   ├── <assay>/<sample>.<assay>.<step>.raw   representation steps (normalizetotal, log1p, hvg, pca, tfidf, lsi,
+│   │                                   selectfeatures, spectral): one file per element and manifest.json
 │   ├── seacells/                       membership (seacell_metacell_assignments.csv), soft assignments,
 │   │                                   metacell AnnData, model, plots
 │   └── hmetacells/                     membership (hierarchial_metacells.csv)
 ├── memberships.csv                     one row per sample and method, with the membership table's path
 ├── ingested.csv                        one row per AnnData written under ingest/
+├── representations.csv                 one row per representation step output
 └── pipeline_info/                      run reports and software versions
 ```
 
