@@ -3,7 +3,8 @@
 Runs each step script on CPU and with --gpu on synthetic counts (20000 cells x 3000 genes, 8 cell types), chained
 through raw step directories as the pipeline chains them, and checks the plan's thresholds: layers within 1e-5,
 HVG Jaccard >= 0.95, PCA explained-variance ratios within 1e-3 (relative) with |correlation| >= 0.99 for the
-leading components, kNN overlap >= 0.95. Prints one SMOKE_REPORT JSON line; exits non-zero when a check fails.
+leading components, kNN overlap >= 0.95 (GPU graph vs an exact CPU search). Prints one SMOKE_REPORT JSON line;
+exits non-zero when a check fails.
 
     python tests/gpu/parity_rna.py        (with shared/python on PYTHONPATH)
 """
@@ -50,6 +51,25 @@ def chain(base, prefix, gpu):
     return scio.Reader(base, outputs), timings
 
 
+def neighbour_sets(reader):
+    """Each cell's neighbours in obsp/distances, without the cell itself."""
+    d = reader.read("obsp/distances").tocsr()
+    return [set(d.indices[d.indptr[i] : d.indptr[i + 1]]) - {i} for i in range(d.shape[0])]
+
+
+def exact_sets(embedding, k):
+    """Each cell's k nearest neighbours by exact Euclidean search, without the cell itself."""
+    from sklearn.neighbors import NearestNeighbors
+
+    _, idx = NearestNeighbors(n_neighbors=k + 1, algorithm="brute").fit(embedding).kneighbors(embedding)
+    return [set(row[row != i][:k]) for i, row in enumerate(idx)]
+
+
+def overlap(sets, reference):
+    """Mean share of each cell's neighbours that are in its reference neighbours (truncated to the same size)."""
+    return round(float(np.mean([len(a & b) / max(len(a), 1) for a, b in zip(sets, reference)])), 4)
+
+
 def check(name, value, ok):
     report[name] = value
     report["ok"] = report["ok"] and bool(ok)
@@ -87,19 +107,18 @@ with tempfile.TemporaryDirectory() as tmp:
     corr = [abs(np.corrcoef(x_cpu[:, i], x_gpu[:, i])[0, 1]) for i in range(10)]
     check("pca_min_abs_corr_top10", round(float(min(corr)), 5), min(corr) >= 0.99)
 
-    def neighbour_sets(reader):
-        d = reader.read("obsp/distances").tocsr()
-        return [set(d.indices[d.indptr[i] : d.indptr[i + 1]]) for i in range(d.shape[0])]
-
-    # The neighbors step alone: GPU graph of the CPU embedding (exact search) vs the CPU graph (approximate above
-    # a few thousand cells); end to end (each on its own PCA) is reported for information
+    # The neighbors step alone, on the CPU embedding: the GPU graph (exact search) against an exact CPU search.
+    # scanpy's own CPU graph is approximate above a few thousand cells (pynndescent; on these data about a third of
+    # the cells have their k-th and (k+1)-th neighbours within 0.1% in distance), so its recall and the end-to-end
+    # overlap (each path on its own PCA) are reported for information only.
     assert step("neighbors").main(["--adata", "base.h5ad", "--prefix", "gpuknn", "--embedding", "cpu.pca.raw", "--gpu"]) == 0
-    same = scio.Reader("base.h5ad", ["gpuknn.neighbors.raw"])
+    embedding = np.asarray(cpu.read("obsm/X_pca"), dtype=np.float32)
+    gpu_sets = neighbour_sets(scio.Reader("base.h5ad", ["gpuknn.neighbors.raw"]))
+    exact = exact_sets(embedding, max(len(g) for g in gpu_sets))
+    check("knn_overlap", overlap(gpu_sets, exact), overlap(gpu_sets, exact) >= 0.95)
     cpu_sets = neighbour_sets(cpu)
-    overlap = np.mean([len(a & b) / max(len(a), 1) for a, b in zip(cpu_sets, neighbour_sets(same))])
-    check("knn_overlap", round(float(overlap), 4), overlap >= 0.95)
-    end_to_end = np.mean([len(a & b) / max(len(a), 1) for a, b in zip(cpu_sets, neighbour_sets(gpu))])
-    report["knn_overlap_end_to_end"] = round(float(end_to_end), 4)
+    report["knn_recall_cpu_approximate"] = overlap(cpu_sets, exact)
+    report["knn_overlap_end_to_end"] = overlap(cpu_sets, neighbour_sets(gpu))
 
 print("SMOKE_REPORT " + json.dumps(report), flush=True)
 sys.exit(0 if report["ok"] else 1)
