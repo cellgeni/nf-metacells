@@ -16,7 +16,7 @@ CuPy) path, keeps intermediate outputs small, and separates *which cells form a 
 ```
 samplesheet: one row per sample (id, rna?, atac?, metadata?, optional precomputed step outputs)
  ├─ INGEST     adata-cli               ADATA_CONVERT → ADATA_ATTACHOBS                               CPU
- ├─ REPRESENT  only the steps that     RNA : NORMALIZETOTAL → LOG1P → HVG → [SCALE] → PCA            CPU|GPU
+ ├─ REPRESENT  only the steps that     RNA : NORMALIZETOTAL → LOG1P → HVG → PCA                      CPU|GPU
  │             the methods need        ATAC: TFIDF → LSI      and/or   SELECTFEATURES → SPECTRAL     CPU|GPU
  │                                     NEIGHBORS on the chosen embedding when a method needs a graph CPU|GPU
  ├─ CONSTRUCT  one task per method×run SEACELLS, HMETACELLS (more to come)                           CPU|GPU
@@ -41,8 +41,7 @@ registry.nextflow.io.
 | scanpy/normalizetotal | `sc.pp.normalize_total` | `rsc.pp.normalize_total` | `normalized` |
 | scanpy/log1p | `sc.pp.log1p` | `rsc.pp.log1p` | `log1p` |
 | scanpy/hvg | `sc.pp.highly_variable_genes` (mask only) | `rsc.pp.highly_variable_genes` | `hvg` |
-| scanpy/scale (optional) | `sc.pp.scale` | `rsc.pp.scale` | `scaled` |
-| scanpy/pca | `sc.pp.pca` | `rsc.pp.pca` | `pca` |
+| scanpy/pca | `sc.pp.pca` on the HVG mask (`--scale` scales those genes in memory first) | `rsc.pp.pca` | `pca` |
 | scanpy/neighbors | `sc.pp.neighbors` | `rsc.pp.neighbors` | `neighbors` |
 | atac/tfidf | muon's formula, idf = 0 for empty peaks | same code on CuPy | `tfidf` |
 | atac/lsi | sparse SVD + muon's ordering and scaling | CuPy sparse SVD | `lsi` |
