@@ -1,0 +1,8 @@
+# SEACells at commit a1173c8 (unified GPU model), as tested in the Phase 0 spike (CPU).
+seacells @ git+https://github.com/dpeerlab/SEACells@a1173c85449203fa5ce44fa515efa5c83a74768b
+# SEACells imports IPython without declaring it
+ipython
+palantir==1.4.6
+scanpy==1.12.6
+anndata==0.13.4
+pandas<3

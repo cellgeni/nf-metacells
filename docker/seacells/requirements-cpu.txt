@@ -1,0 +1,306 @@
+anndata==0.13.4
+    # via
+    #   -r docker/seacells/requirements-cpu.in
+    #   palantir
+    #   scanpy
+    #   seacells
+annotated-types==0.8.0
+    # via pydantic
+array-api-compat==1.16.0
+    # via
+    #   anndata
+    #   fast-array-utils
+asttokens==3.0.2
+    # via stack-data
+certifi==2026.11.20
+    # via scanpy
+cloudpickle==3.1.3
+    # via joblib
+contourpy==1.4.0
+    # via matplotlib
+cycler==0.12.1
+    # via matplotlib
+donfig==0.8.1.post1
+    # via zarr
+executing==2.3.0
+    # via stack-data
+fast-array-utils==1.5.1
+    # via scanpy
+fonttools==4.69.1
+    # via matplotlib
+formulaic==1.2.2
+    # via statsmodels
+google-crc32c==1.9.0
+    # via zarr
+h5py==3.16.0
+    # via
+    #   anndata
+    #   scanpy
+igraph==1.0.0
+    # via palantir
+interface-meta==2.0.1
+    # via formulaic
+ipython==9.19.1
+    # via -r docker/seacells/requirements-cpu.in
+ipython-pygments-lexers==1.1.1
+    # via ipython
+jax==0.12.1
+    # via
+    #   jaxopt
+    #   mellon
+jaxlib==0.12.1
+    # via
+    #   jax
+    #   jaxopt
+jaxopt==0.8.5
+    # via mellon
+jedi==0.20.1
+    # via ipython
+joblib==1.6.0
+    # via
+    #   palantir
+    #   pynndescent
+    #   scanpy
+    #   scikit-learn
+kiwisolver==1.5.1
+    # via matplotlib
+legacy-api-wrap==1.5
+    # via
+    #   anndata
+    #   scanpy
+llvmlite==0.50.0
+    # via
+    #   numba
+    #   pynndescent
+matplotlib==3.11.2
+    # via
+    #   palantir
+    #   scanpy
+    #   seaborn
+    #   seacells
+matplotlib-inline==0.2.2
+    # via ipython
+mellon==1.7.2
+    # via palantir
+ml-dtypes==0.7.0
+    # via
+    #   jax
+    #   jaxlib
+    #   palantir
+msgspec==0.22.0
+    # via zarr
+narwhals==2.29.0
+    # via
+    #   formulaic
+    #   scikit-learn
+natsort==8.4.0
+    # via
+    #   anndata
+    #   pyranges
+    #   scanpy
+ncls==0.0.71
+    # via pyranges
+networkx==3.7
+    # via scanpy
+numba==0.68.1
+    # via
+    #   fast-array-utils
+    #   pynndescent
+    #   scanpy
+    #   seacells
+    #   umap-learn
+numcodecs==0.17.1
+    # via zarr
+numpy==2.5.5
+    # via
+    #   anndata
+    #   contourpy
+    #   fast-array-utils
+    #   formulaic
+    #   h5py
+    #   jax
+    #   jaxlib
+    #   jaxopt
+    #   matplotlib
+    #   ml-dtypes
+    #   ncls
+    #   numba
+    #   numcodecs
+    #   palantir
+    #   pandas
+    #   patsy
+    #   scanpy
+    #   scikit-learn
+    #   scipy
+    #   seaborn
+    #   seacells
+    #   sorted-nearest
+    #   statsmodels
+    #   umap-learn
+    #   zarr
+opt-einsum==3.4.0
+    # via jax
+packaging==26.4
+    # via
+    #   anndata
+    #   matplotlib
+    #   mellon
+    #   patsy
+    #   scanpy
+    #   statsmodels
+    #   zarr
+palantir==1.4.6
+    # via
+    #   -r docker/seacells/requirements-cpu.in
+    #   seacells
+pandas==2.3.3
+    # via
+    #   -r docker/seacells/requirements-cpu.in
+    #   anndata
+    #   formulaic
+    #   palantir
+    #   pyranges
+    #   scanpy
+    #   seaborn
+    #   seacells
+    #   statsmodels
+parso==0.8.7
+    # via jedi
+patsy==1.0.3
+    # via
+    #   scanpy
+    #   statsmodels
+pexpect==4.9.0
+    # via ipython
+pillow==13.0.0
+    # via matplotlib
+prompt-toolkit==3.0.53
+    # via ipython
+psutil==7.2.2
+    # via ipython
+ptyprocess==0.7.0
+    # via pexpect
+pure-eval==0.2.4
+    # via stack-data
+pydantic==2.14.4
+    # via pydantic-settings
+pydantic-core==2.50.5
+    # via pydantic
+pydantic-settings==2.16.3
+    # via scverse-misc
+pygments==2.21.0
+    # via
+    #   ipython
+    #   ipython-pygments-lexers
+pynndescent==0.7.0
+    # via
+    #   mellon
+    #   scanpy
+    #   umap-learn
+pyparsing==3.3.3
+    # via matplotlib
+pyranges==0.1.7
+    # via seacells
+python-dateutil==4.0.0
+    # via
+    #   matplotlib
+    #   pandas
+python-dotenv==1.2.4
+    # via
+    #   pydantic-settings
+    #   scverse-misc
+pytz==2026.6
+    # via pandas
+pyyaml==6.0.4
+    # via donfig
+scanpy==1.12.6
+    # via
+    #   -r docker/seacells/requirements-cpu.in
+    #   palantir
+    #   seacells
+scikit-learn==1.9.1
+    # via
+    #   mellon
+    #   palantir
+    #   pynndescent
+    #   scanpy
+    #   seacells
+    #   umap-learn
+scipy==1.18.1
+    # via
+    #   anndata
+    #   fast-array-utils
+    #   formulaic
+    #   jax
+    #   jaxlib
+    #   jaxopt
+    #   palantir
+    #   pynndescent
+    #   scanpy
+    #   scikit-learn
+    #   seacells
+    #   statsmodels
+    #   umap-learn
+scverse-misc==0.1.9
+    # via
+    #   anndata
+    #   scanpy
+seaborn==0.13.2
+    # via
+    #   scanpy
+    #   seacells
+seacells @ git+https://github.com/dpeerlab/SEACells@a1173c85449203fa5ce44fa515efa5c83a74768b
+    # via -r docker/seacells/requirements-cpu.in
+session-info2==0.4.2
+    # via
+    #   scanpy
+    #   scverse-misc
+sorted-nearest==0.0.42
+    # via pyranges
+stack-data==0.6.3
+    # via ipython
+statsmodels==0.15.0
+    # via scanpy
+tabulate==0.10.0
+    # via pyranges
+texttable==1.7.3
+    # via igraph
+threadpoolctl==3.8.0
+    # via scikit-learn
+tqdm==4.70.1
+    # via
+    #   scanpy
+    #   seacells
+    #   umap-learn
+traitlets==5.16.1
+    # via
+    #   ipython
+    #   matplotlib-inline
+typing-extensions==4.16.0
+    # via
+    #   anndata
+    #   formulaic
+    #   numcodecs
+    #   pydantic
+    #   pydantic-core
+    #   pydantic-settings
+    #   scanpy
+    #   scverse-misc
+    #   typing-inspection
+    #   zarr
+typing-inspection==0.4.5
+    # via
+    #   pydantic
+    #   pydantic-settings
+tzdata==2026.6
+    # via
+    #   pandas
+    #   python-dateutil
+umap-learn==0.6.0
+    # via scanpy
+wcwidth==0.9.5
+    # via prompt-toolkit
+wrapt==2.5.2
+    # via formulaic
+zarr==3.4.2
+    # via anndata
