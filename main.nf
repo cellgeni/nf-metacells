@@ -9,7 +9,8 @@ include { paramsHelp; paramsSummaryLog; samplesheetToList; validateParameters } 
 include { METACELLS } from './workflows/metacells'
 include { AssayState; Membership; MethodFiles } from './workflows/types'
 
-// Documented in nextflow_schema.json; `outdir` and `publish_mode` are in nextflow.config, which uses them
+// Documented in nextflow_schema.json. Parameters that only configuration uses (`outdir`, `publish_mode` and the
+// GPU settings) are declared in nextflow.config.
 params {
     // Input
     input: Path?
@@ -44,12 +45,6 @@ params {
     hmetacells_n_max: Integer?
     hmetacells_method: String = 'louvain'
     hmetacells_n_neighbors: Integer = 15
-
-    // GPU (read by conf/base.config for processes labelled process_gpu)
-    gpu_steps: String = 'none'
-    gpuqueue: String = 'gpu'
-    gpu_gmem: Integer = 40000
-    costcode: String?
 
     // --help, --help <param>, --helpFull
     help: String?

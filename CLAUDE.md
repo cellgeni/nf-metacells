@@ -47,7 +47,9 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
   rejects it; Singularity adds it itself); Dockerfiles and lock files live in `docker/<image>/`.
 - Versions: `topic:` records, `record(process: task.process, tool: '…', version: eval('…')) >> 'versions'`.
 - Params are flat (`seacells_min_iter`, not `seacells.min_iter`), typed in `main.nf` `params {}` and documented in
-  `nextflow_schema.json`. Only params that config settings use (`outdir`, `publish_mode`) live in `nextflow.config`.
+  `nextflow_schema.json`. Params that only config settings use (`outdir`, `publish_mode`, the GPU settings) live in
+  `nextflow.config`: module nf-tests load the pipeline config but not `main.nf`, so config closures must not depend
+  on params that only `main.nf` declares (they are null there).
 - Layout: `main.nf` (params, entry workflow, output block) → `workflows/metacells.nf` → `subworkflows/local/*`;
   records in `workflows/types.nf`; `conf/base.config` (defaults), `conf/modules.config` (ext.args from params),
   `conf/test*.config`.
