@@ -195,6 +195,37 @@
         }
       }
     },
+    "gpu_options": {
+      "title": "GPU",
+      "type": "object",
+      "fa_icon": "fas fa-microchip",
+      "description": "Which steps run on a GPU, and how GPU jobs are requested from LSF.",
+      "properties": {
+        "gpu_steps": {
+          "type": "string",
+          "default": "none",
+          "pattern": "^(none|auto|all|(normalizetotal|log1p|hvg|scale|pca|neighbors|tfidf|lsi|spectral|seacells|hmetacells|aggregate)(,(normalizetotal|log1p|hvg|scale|pca|neighbors|tfidf|lsi|spectral|seacells|hmetacells|aggregate))*)$",
+          "description": "Steps that run on a GPU: none, auto, all, or a comma-separated list.",
+          "help_text": "`auto` picks the steps that gain most from a GPU (pca, neighbors, lsi, spectral, seacells, hmetacells). Steps without a GPU path always run on CPU. GPU steps need an A100 or H100 (CUDA 12)."
+        },
+        "gpuqueue": {
+          "type": "string",
+          "default": "gpu",
+          "description": "LSF queue for GPU jobs."
+        },
+        "gpu_gmem": {
+          "type": "integer",
+          "default": 40000,
+          "minimum": 40000,
+          "description": "GPU memory (MB) requested per GPU job; 8000 MB more on each retry.",
+          "help_text": "40000 MB or more keeps jobs on A100/H100 GPUs: the CUDA 12 RAPIDS builds have no kernels for the farm's V100s."
+        },
+        "costcode": {
+          "type": "string",
+          "description": "LSF project (-G) for GPU jobs, needed on some queues."
+        }
+      }
+    },
     "generic_options": {
       "title": "Generic options",
       "type": "object",
@@ -219,6 +250,7 @@
     { "$ref": "#/$defs/representation_options" },
     { "$ref": "#/$defs/seacells_options" },
     { "$ref": "#/$defs/hmetacells_options" },
+    { "$ref": "#/$defs/gpu_options" },
     { "$ref": "#/$defs/generic_options" }
   ]
 }

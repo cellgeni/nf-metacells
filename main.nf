@@ -45,6 +45,12 @@ params {
     hmetacells_method: String = 'louvain'
     hmetacells_n_neighbors: Integer = 15
 
+    // GPU (read by conf/base.config for processes labelled process_gpu)
+    gpu_steps: String = 'none'
+    gpuqueue: String = 'gpu'
+    gpu_gmem: Integer = 40000
+    costcode: String?
+
     // --help, --help <param>, --helpFull
     help: String?
     helpFull: Boolean = false
