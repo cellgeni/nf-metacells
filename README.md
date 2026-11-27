@@ -52,7 +52,7 @@ Paths may be absolute or relative to the launch directory.
 | `--atac_embedding` | `lsi` | ATAC embedding: `lsi` (TF-IDF + LSI, as muon) or `spectral` (snapATAC2) |
 | `--hvg_n_top_genes`, `--pca_n_comps`, `--lsi_n_comps`, `--spectral_n_comps` | 2000, 50, 50, 30 | Embedding sizes |
 | `--rna_counts_key`, `--atac_counts_key` | `X` | Where the counts are: `X`, `layers/<name>` or `raw/X` |
-| `--gpu_steps` | `none` | Steps that run on a GPU: `none`, `auto`, `all` or a list (e.g. `pca,lsi,spectral`); A100/H100 only |
+| `--gpu_steps` | `none` | Steps that run on a GPU: `none`, `auto`, `all` or a list (e.g. `lsi,spectral`); A100/H100 only |
 | `--cell_metadata` | – | CSV for all samples (`barcode`, `sample_id`, annotations); cells without metadata are dropped |
 | `--barcode_column` | `obs_names` | obs column matched to the metadata barcodes |
 | `--barcode_delimiter` | – | Rename barcodes to `<barcode><delimiter><id>` (originals kept in `obs['barcode']`, the id in `obs['sample']`) |

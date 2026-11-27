@@ -24,8 +24,9 @@ the renamed parameters.
   sample with overlapping barcodes, counts in `layers/counts`, a 10x multiome `.h5`, a 10x mtx folder and cell
   metadata.
 - nf-test configuration and a CI workflow that lints the pipeline with Nextflow 26.10.7.
-- GPU job settings `--gpu_steps`, `--gpuqueue`, `--gpu_gmem` and `--costcode` for the GPU-capable steps of the
-  coming per-step modules (no step has a GPU path yet).
+- GPU job settings `--gpu_steps`, `--gpuqueue`, `--gpu_gmem` and `--costcode`. `--gpu_steps auto` runs the steps
+  whose GPU gain is large and grows with the data (`neighbors`, `lsi`, `spectral`, `seacells`, `hmetacells`); the
+  rest take seconds either way and would only pay the 12–52 minute GPU queue wait.
 - Images for the per-step modules, all on Python 3.12 (`docker/`): Seqera Containers (Wave) builds of conda
   environment files with pip packages for the CPU stacks (scanpy 1.12.6; snapATAC2 2.10.0), and Dockerfiles and
   lock files for the quay.io images rapids-singlecell 0.18.1 (CUDA 12) and SEACells a1173c8 (CPU and GPU); GPU

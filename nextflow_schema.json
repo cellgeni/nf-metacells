@@ -322,7 +322,7 @@
           "default": "none",
           "pattern": "^(none|auto|all|(normalizetotal|log1p|hvg|scale|pca|neighbors|tfidf|lsi|spectral|seacells|hmetacells|aggregate)(,(normalizetotal|log1p|hvg|scale|pca|neighbors|tfidf|lsi|spectral|seacells|hmetacells|aggregate))*)$",
           "description": "Steps that run on a GPU: none, auto, all, or a comma-separated list.",
-          "help_text": "`auto` picks the steps that gain most from a GPU (pca, neighbors, lsi, spectral, seacells, hmetacells). Steps without a GPU path always run on CPU. GPU steps need an A100 or H100 (CUDA 12)."
+          "help_text": "`auto` picks the steps that gain most from a GPU (neighbors, lsi, spectral, seacells, hmetacells); the others are seconds either way and would only pay the GPU queue wait. Steps without a GPU path always run on CPU. GPU steps need an A100 or H100 (CUDA 12)."
         },
         "gpuqueue": {
           "type": "string",
