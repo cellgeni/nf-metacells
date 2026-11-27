@@ -1,0 +1,17 @@
+# snapATAC2 (snapatac2/selectfeatures, CPU path of snapatac2/spectral), built by Seqera Containers (Wave): see
+# docker/README.md. Keep anndata and pandas in step with docker/scanpy/environment.yml.
+channels:
+  - conda-forge
+dependencies:
+  - conda-forge::python=3.12
+  - conda-forge::pip
+  # PyPI has macs3 (a snapATAC2 dependency) as source only: pip compiles it with these. conda-gcc-specs adds the
+  # environment's include and lib directories, where zlib lives, to gcc's search paths.
+  - conda-forge::gcc
+  - conda-forge::conda-gcc-specs
+  - conda-forge::zlib
+  - pip:
+      - snapatac2==2.10.0
+      - anndata==0.13.4
+      # snapATAC2 2.10 needs pandas < 3; anndata >= 0.12 with pandas 3 writes unreadable string indices (CLAUDE.md)
+      - pandas==2.3.3

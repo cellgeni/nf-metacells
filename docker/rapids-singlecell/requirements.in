@@ -7,7 +7,7 @@ cuml-cu12==26.6.*
 cuvs-cu12==26.6.*
 rmm-cu12==26.6.*
 cupy-cuda12x[ctk]==14.2.0
-# Same CPU stack as docker/scanpy
+# Same CPU stack as docker/scanpy/environment.yml
 scanpy==1.12.6
 anndata==0.13.4
 pandas<3

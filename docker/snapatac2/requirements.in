@@ -1,4 +1,0 @@
-# snapatac2/selectfeatures and the CPU path of snapatac2/spectral.
-snapatac2==2.10.0
-anndata==0.13.4
-pandas<3

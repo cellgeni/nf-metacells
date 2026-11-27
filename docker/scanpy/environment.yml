@@ -1,0 +1,17 @@
+# CPU scverse stack (scanpy/*, atac/*, hmetacells, aggregate, evaluate, assemble), built by Seqera Containers (Wave):
+# see docker/README.md. Keep scanpy, anndata and pandas in step with docker/rapids-singlecell (CPU/GPU parity).
+# scanpy comes from pip: 1.12.6 fixes highly variable gene selection, and conda-forge stops at 1.12.5 for Python 3.12.
+channels:
+  - conda-forge
+dependencies:
+  - conda-forge::python=3.12
+  - conda-forge::pip
+  - pip:
+      - scanpy==1.12.6
+      - anndata==0.13.4
+      # anndata >= 0.12 with pandas 3 writes string indices other readers cannot open (CLAUDE.md)
+      - pandas==2.3.3
+      # seurat_v3 highly variable genes
+      - scikit-misc==0.5.3
+      # hmetacells hierarchies
+      - scikit-network==0.33.5
