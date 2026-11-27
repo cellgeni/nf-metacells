@@ -1,0 +1,45 @@
+nextflow_process {
+
+    name "Test Process SCANPY_HVG"
+    script "../main.nf"
+    process "SCANPY_HVG"
+
+    tag "modules"
+    tag "scanpy/hvg"
+
+    test("seurat_v3 on the counts, slim h5ad") {
+        config "./seurat_v3.config"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  log1p: null, counts_key: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            assertAll(
+                { assert process.success },
+                { assert file(out.hvg).name == 'S1.rna.hvg.h5ad' },
+                { assert file(out.hvg).size() > 0 }
+            )
+        }
+    }
+
+    test("stub") {
+        options "-stub"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  log1p: null, counts_key: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].hvg).name == 'S1.rna.hvg.raw'
+        }
+    }
+}
