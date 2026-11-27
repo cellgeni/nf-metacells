@@ -26,11 +26,12 @@ the renamed parameters.
 - nf-test configuration and a CI workflow that lints the pipeline with Nextflow 26.10.7.
 - GPU job settings `--gpu_steps`, `--gpuqueue`, `--gpu_gmem` and `--costcode` for the GPU-capable steps of the
   coming per-step modules (no step has a GPU path yet).
-- Dockerfiles and lock files for the images of the per-step modules (`docker/`): scanpy 1.12.6, rapids-singlecell
-  0.18.1 (CUDA 12), snapATAC2 2.10.0 and SEACells a1173c8 (CPU and GPU), all on Python 3.12; GPU smoke tests for
-  the farm (`tests/gpu/`).
+- Images for the per-step modules, all on Python 3.12 (`docker/`): Seqera Containers (Wave) builds of conda
+  environment files with pip packages for the CPU stacks (scanpy 1.12.6; snapATAC2 2.10.0), and Dockerfiles and
+  lock files for the quay.io images rapids-singlecell 0.18.1 (CUDA 12) and SEACells a1173c8 (CPU and GPU); GPU
+  smoke tests for the farm (`tests/gpu/`).
 - `scio.py`, the input/output helper of the step modules (raw directories, slim and attach objects), with tests in
-  CI.
+  CI. CI runs the Python tests inside the CPU images and the module nf-tests with Docker.
 - Representation modules with CPU and GPU paths, tested against the v1 in-memory preprocessing (scanpy, muon,
   snapATAC2): `scanpy/normalizetotal`, `scanpy/log1p`, `scanpy/hvg`, `scanpy/pca` (with an in-memory `--scale`
   instead of a separate scale step, which would write a dense layer), `scanpy/neighbors`, `atac/tfidf`, `atac/lsi`,

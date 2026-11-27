@@ -113,7 +113,7 @@ Labels have two roles: `--constrain_by` (build metacells within groups) and `--e
 | 0 | Legacy close-out (seacells 1.1.0, tag 0.1.0), Nextflow 26.10.7, test data, spikes, CI | done |
 | 1 | adata-cli ingestion (`adata/convert`, `adata/attachobs`) | done |
 | 2 | Typed pipeline skeleton, nf-schema, output block | done: the v1 SEACells/hmetacells modules still preprocess internally |
-| 3 | Containers, GPU plumbing, shared I/O helper | done: `scanpy` and `snapatac2` images wait for quay.io push access |
+| 3 | Containers, GPU plumbing, shared I/O helper | done: CPU images from Seqera Containers (Wave), CUDA images on quay.io |
 | 4 | Representation modules (CPU + GPU) | in progress: modules and wiring done (the v1 methods read the computed embedding); GPU parity on the farm and real-data timings pending |
 | 5 | SEACells/hmetacells 2.0, aggregate, evaluate, assemble | – |
 | 6 | Registry publishing, docs, first calendar release | – |

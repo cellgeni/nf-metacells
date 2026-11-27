@@ -28,8 +28,9 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
   quick wiring check). Test samplesheets use paths relative to the repository root, so run from there.
 - Test data: `tests/data/make_test_data.py` (its header has the `uv run` command). Synthetic only — never
   commit real data.
-- Shared I/O helper tests: `uv run --no-project --python 3.12 --with-requirements docker/scanpy/requirements.txt
-  --with pytest==9.2.0 python -m pytest shared/python -q`.
+- Python tests run inside the CPU images, as in CI: `pytest shared/python tests/python` in the scanpy image,
+  `tests/python/test_snapatac2.py` in the snapatac2 one (pytest is not in the images: `pip install --target` it
+  into `.dev/` and add that to `PYTHONPATH`; run on a compute node).
 - GPU images: `tests/gpu/run_smoke.sh` (one LSF job per GPU model); building and tagging rules in `docker/README.md`.
 
 ## Conventions
@@ -45,8 +46,11 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
   (the last part of its name, lower-cased: `SCANPY_PCA` → `pca`) and adds LSF `-gpu` options and `--nv`.
 - Step scripts read and write elements through `scio.py`: edit `shared/python/scio.py` only, then run
   `scripts/sync_shared.sh` (it copies the file into each module's `resources/usr/bin/`; CI checks the copies).
-- Containers: pinned `quay.io/cellgeni/*` tags, never `latest`, and no `docker://` prefix (the Docker engine
-  rejects it; Singularity adds it itself); Dockerfiles and lock files live in `docker/<image>/`.
+- Containers: CPU images are Seqera Containers (Wave) builds of `docker/<image>/environment.yml` (Python packages
+  from pip), pinned by their `community.wave.seqera.io/library/…:<hash>` tag; CUDA and SEACells images are pinned
+  `quay.io/cellgeni/*` tags, with Dockerfiles and lock files in `docker/<image>/`. Never `latest`, and no
+  `docker://` prefix (the Docker engine rejects it; Singularity adds it itself). Wave images set no environment,
+  so module scripts export `PYTHONNOUSERSITE=1` and put `NUMBA_CACHE_DIR` and `MPLCONFIGDIR` under `$TMPDIR`.
 - Versions: `topic:` records, `record(process: task.process, tool: '…', version: eval('…')) >> 'versions'`. Step
   modules call `eval("scio.py version <distribution>")`; every `eval()` in a topic runs, so pick the distribution
   inside one call (`${task.accelerator ? 'rapids-singlecell-cu12' : 'scanpy'}`), never in a ternary of two calls.
@@ -98,6 +102,9 @@ module load cellgen/nextflow/26.10.7 cellgen/nf-test cellgen/uv
 - pandas 3 makes anndata ≥ 0.12 write string indices/columns as `nullable-string-array`, which older anndata
   (e.g. the legacy 0.9.2 images) and other readers can't open. Images and the test-data generator pin
   `pandas<3` (snapATAC2 2.10 requires it anyway) until the ecosystem catches up.
+- A Wave image tag is a hash of the whole environment file: any edit, even to a comment, needs a rebuild
+  (`docker/README.md`) and new container lines. PyPI has macs3 (snapATAC2) as source only, so the snapatac2
+  environment carries conda-forge `gcc`, `conda-gcc-specs` and `zlib` for pip to compile it.
 - `cellgen/nextflow/26.10.7` is the small launcher, which downloads the framework into `~/.nextflow` on first use.
   A new shell finds Nextflow 25.04.4 first: load 26.10.7 in the same shell, or `nextflow lint` dies with a
   NullPointerException in `CmdLint.printErrors` instead of listing the errors.
