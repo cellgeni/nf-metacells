@@ -29,7 +29,9 @@ The step output must hold the same cells as the base object, in the same order.
 
 - `<prefix>.membership.csv` — `barcode,metacell`, one row per cell; an empty `metacell` means unassigned.
 - `<prefix>.seacells.json` — `converged`, `n_cells`, `n_metacells`, `requested_metacells`, `metacell_size`
-  (min/median/max), `rss`, `embedding_key`, `backend`, `gpu`, `jitter`, `seed`, `max_iter` and tool versions.
+  (min/median/max), `rss`, `embedding_key`, `backend`, `gpu`, `gpu_fallback`, `jitter`, `seed`, `max_iter`
+  and tool versions. `gpu` is the device that produced the partition, not the one asked for: a cuSPARSE
+  fallback sets `gpu: false` and `gpu_fallback: true`.
 
 ## Options
 
@@ -40,7 +42,8 @@ The step output must hold the same cells as the base object, in the same order.
 - `--use-sparse` selects the legacy sparse CPU backend; SEACells refuses to combine it with the unified model, so
   it cannot be given together with an accelerator.
 - GPU: give the task an accelerator (`accelerator = 1`; on LSF also request the GPU, e.g. with clusterOptions).
-  The GPU path needs an A100 or H100 (CUDA 12). A cuSPARSE failure falls back to the CPU once.
+  The GPU path needs an A100 or H100 (CUDA 12). A cuSPARSE failure falls back to the CPU once, and the
+  summary then records the CPU as the device, so a parity check cannot read that result as a GPU one.
 
 ## Behaviour worth knowing
 

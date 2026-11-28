@@ -56,8 +56,8 @@ output:
     - name: summary
       type: file
       description: >
-        `<prefix>.seacells.json`: converged, n_metacells, requested_metacells, metacell_size, rss, backend, gpu,
-        jitter, seed and tool versions.
+        `<prefix>.seacells.json`: converged, n_metacells, requested_metacells, metacell_size, rss, backend, gpu
+        (the device that produced the partition), gpu_fallback, jitter, seed and tool versions.
       pattern: "*.seacells.json"
 topics:
   - - name: process

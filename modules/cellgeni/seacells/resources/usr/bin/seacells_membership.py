@@ -152,12 +152,14 @@ def main(argv: list[str] | None = None) -> int:
     adata.obsm[key] = embedding
     if args.gpu:
         scio.gpu_init()
+    used_gpu = args.gpu
     try:
-        model, converged = build_model(adata, key, n_metacells, args, args.gpu)
+        model, converged = build_model(adata, key, n_metacells, args, used_gpu)
     except Exception as failed:  # noqa: BLE001 - the message is the only handle cuSPARSE gives us
         if not (args.gpu and any(marker in str(failed) for marker in CUSPARSE_MARKERS)):
             raise
         scio.log.warning("cuSPARSE failed (%s); falling back to the CPU", failed)
+        used_gpu = False
         np.random.seed(args.seed)
         model, converged = build_model(adata, key, n_metacells, args, use_gpu=False)
 
@@ -176,7 +178,10 @@ def main(argv: list[str] | None = None) -> int:
         "rss": float(model.compute_RSS()) if hasattr(model, "compute_RSS") else None,
         "embedding_key": key,
         "backend": "sparse" if args.use_sparse else "unified",
-        "gpu": bool(args.gpu),
+        # The device that produced this partition, not the one asked for: a cuSPARSE fallback lands on the CPU,
+        # and the two give different partitions, so a parity check must not read a CPU result as a GPU one
+        "gpu": bool(used_gpu),
+        "gpu_fallback": bool(args.gpu and not used_gpu),
         "jitter": jitter,
         "seed": args.seed,
         "max_iter": args.max_iter,
@@ -185,7 +190,8 @@ def main(argv: list[str] | None = None) -> int:
     with open(f"{args.prefix}.seacells.json", "w") as out:
         json.dump(summary, out, indent=2, sort_keys=True)
 
-    scio.log.info("%s metacells for %s cells (converged=%s)", sizes.size, len(membership), converged)
+    scio.log.info("%s metacells for %s cells on the %s (converged=%s)",
+                  sizes.size, len(membership), "GPU" if used_gpu else "CPU", converged)
     return 0
 
 

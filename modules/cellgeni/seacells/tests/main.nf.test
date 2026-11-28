@@ -44,7 +44,7 @@ nextflow_process {
                 { assert summary.requested_metacells == 20 },
                 { assert summary.n_metacells > 1 && summary.n_metacells <= 20 },
                 { assert summary.n_cells == 400 },
-                { assert summary.backend == 'unified' && !summary.gpu },
+                { assert summary.backend == 'unified' && !summary.gpu && !summary.gpu_fallback },
                 { assert summary.converged in [true, false] },
                 { assert summary.versions.SEACells }
             )
