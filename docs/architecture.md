@@ -111,9 +111,9 @@ record Membership { id; sample; basis; method; run; membership; extras }
   The ranges are two H100 runs of the same check: CPU times move a lot with node load (`neighbors` 118 s and
   28 s on the same data), GPU times hardly at all, so treat the speed-ups as lower bounds on a loaded farm.
 
-  Of those five, only `lsi` and `spectral` are wired in phase 4; `neighbors` has a module but no caller yet, and
-  `seacells` and `hmetacells` reach a GPU when phase 5 replaces the v1 modules, which carry no `process_gpu`
-  label. `--gpu_steps all` is a trap: the four RNA steps then spend 6 h 15 of queue wait between them and a
+  Of those five, `lsi`, `spectral` and, from its 2.0 module, `seacells` are wired; `neighbors` has a module but no
+  caller yet, and `hmetacells` reaches a GPU when its own 2.0 module lands, because the v1 module carries no
+  `process_gpu` label. `--gpu_steps all` is a trap: the four RNA steps then spend 6 h 15 of queue wait between them and a
   20-minute CPU run does not finish in 1 h 30.
 - One module per step costs about 20 s of scheduling and 1.5 GB of I/O per sample over the RNA chain (each step
   re-reads ~300 MB and writes ~220 MB). Against a method step of 19–43 minutes that is noise, so the RNA steps
@@ -139,6 +139,6 @@ Labels have two roles: `--constrain_by` (build metacells within groups) and `--e
 | 2 | Typed pipeline skeleton, nf-schema, output block | done: the v1 SEACells/hmetacells modules still preprocess internally |
 | 3 | Containers, GPU plumbing, shared I/O helper | done: CPU images from Seqera Containers (Wave), CUDA images on quay.io |
 | 4 | Representation modules (CPU + GPU) | done: the v1 methods read the computed embedding until phase 5; CPU/GPU parity within thresholds on an H100, and the timings above set `--gpu_steps auto` |
-| 5 | SEACells/hmetacells 2.0, aggregate, evaluate, assemble | – |
+| 5 | SEACells/hmetacells 2.0, aggregate, evaluate, assemble | in progress: `seacells` 2.0.0 takes the embedding step output and writes a membership table; hmetacells still reads the assembled object |
 | 6 | Registry publishing, docs, first calendar release | – |
 | 7 | New methods: k-means, MetaQ, SuperCell, MC2, mcRigor, EpiCarousel, LSMetacell | – |

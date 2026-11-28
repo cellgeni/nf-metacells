@@ -1,61 +1,54 @@
-/*
- * Module: cellgeni/seacells
- */
+nextflow.enable.types = true
 
+/*
+ * SEACells metacells from a precomputed embedding: `<prefix>.membership.csv` (barcode,metacell) and
+ * `<prefix>.seacells.json` (convergence, RSS, metacell sizes, versions). The unified SEACells model runs on CPU
+ * and, when the task has an accelerator, on the device; ext.args `--use-sparse` asks for the legacy sparse CPU
+ * backend instead. One of `--n-metacells <int>` or `--gamma <int>` is required (ext.args); the obsm key comes
+ * from the record. Other ext.args: --n-waypoint-eigs, --n-neighbors, --convergence-epsilon, --min-iter,
+ * --max-iter, --use-sparse, --seed.
+ * Non-convergence is reported in the JSON rather than raised: the labels are set before SEACells complains, and
+ * with a seed a retry reproduces the same partition.
+ */
 process SEACELLS {
-    tag "${meta.id}"
-    container 'docker://quay.io/cellgeni/seacells:latest'
+    tag id
+    label 'process_gpu'
+    container task.accelerator ?
+        'quay.io/cellgeni/seacells:a1173c8-gpu' :
+        'quay.io/cellgeni/seacells:a1173c8-cpu'
 
     input:
-    tuple val(meta), path(adata)
+    record(id: String, adata: Path, embedding: Path?, embedding_key: String?, output_prefix: String?)
+
+    stage:
+    stageAs adata, 'input/*'
 
     output:
-    tuple val(meta), path("*.h5ad"), emit: h5ad
-    tuple val(meta), path("*.csv"), emit: csv
-    tuple val(meta), path("*.npy"), emit: npy
-    tuple val(meta), path("*.pdf"), emit: pdf
-    tuple val(meta), path("*.pkl"), emit: pkl
-    path "versions.yml", emit: versions
+    record(
+        id: id,
+        membership: file("${output_prefix ?: id}.membership.csv"),
+        summary: file("${output_prefix ?: id}.seacells.json")
+    )
+
+    topic:
+    record(process: task.process, tool: 'SEACells', version: eval('scio.py version SEACells')) >> 'versions'
 
     script:
-    def args = task.ext.args ?: "--type gex --n_top_genes 2000 --n_components 50 --convergence_epsilon 0.00001 --min_iter 10 --max_iter 50"
-    def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    seacells_aggregate.py \
-        ${args} \
-        --adata ${adata} \
-        --sample ${prefix} \
-        --output_dir .
-    
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        python: \$( python --version 2>&1 | awk '{print \$2}' )
-        SEACells: \$( python -c "import SEACells; print(SEACells.__version__)" )
-        anndata: \$( python -c "import anndata; print(anndata.__version__)" )
-        scanpy: \$( python -c "import scanpy; print(scanpy.__version__)" )
-        muon: \$( python -c "import muon; print(muon.__version__)" )
-        pandas: \$( python -c "import pandas; print(pandas.__version__)" )
-    END_VERSIONS
+    export OMP_NUM_THREADS=${task.cpus} OPENBLAS_NUM_THREADS=${task.cpus} NUMBA_NUM_THREADS=${task.cpus}
+    export PYTHONNOUSERSITE=1 NUMBA_CACHE_DIR=\${TMPDIR:-/tmp}/numba MPLCONFIGDIR=\${TMPDIR:-/tmp}/matplotlib
+    seacells_membership.py \\
+        --adata ${adata} \\
+        --prefix ${output_prefix ?: id} \\
+        ${embedding ? "--embedding ${embedding}" : ''} \\
+        ${embedding_key ? "--embedding-key ${embedding_key}" : ''} \\
+        ${task.accelerator ? '--gpu' : ''} \\
+        ${task.ext.args ?: ''}
     """
 
     stub:
-    def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    touch ${prefix}.h5ad
-    touch ${prefix}.csv
-    touch ${prefix}.npy
-    touch ${prefix}.pdf
-    touch ${prefix}.pkl
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        python: \$( python --version 2>&1 | awk '{print \$2}' )
-        SEACells: \$( python -c "import SEACells; print(SEACells.__version__)" )
-        anndata: \$( python -c "import anndata; print(anndata.__version__)" )
-        scanpy: \$( python -c "import scanpy; print(scanpy.__version__)" )
-        muon: \$( python -c "import muon; print(muon.__version__)" )
-        pandas: \$( python -c "import pandas; print(pandas.__version__)" )
-    END_VERSIONS
+    printf 'barcode,metacell\\n' > ${output_prefix ?: id}.membership.csv
+    printf '{"method": "seacells", "converged": true}\\n' > ${output_prefix ?: id}.seacells.json
     """
 }

@@ -1,88 +1,58 @@
 # cellgeni/seacells
 
-## Summary
-
-Runs the SEACells algorithm to aggregate single-cell profiles into a smaller set of representative metacells (cellular states) from single-cell genomics data (e.g. scRNA-seq or scATAC-seq).
-
-## Get started
-
-Include this module in your Nextflow pipeline:
+SEACells metacells from a precomputed embedding: a membership table and a JSON summary. The unified SEACells model
+(commit a1173c8) runs on CPU and, when the task has an accelerator, on the device.
 
 ```nextflow
+nextflow.enable.types = true
 include { SEACELLS } from 'cellgeni/seacells'
+
+SEACELLS(channel.of(record(id: 'S1.rna', adata: file('S1_rna.h5ad'), embedding: file('S1.pca.raw'),
+                           embedding_key: 'X_pca', output_prefix: null)))
 ```
 
-### Inputs
+## Input record
 
-- `tuple val(meta), path(adata)`
-  - `meta`: sample metadata map (expects an `id` key; used for tagging and default output prefixing)
-  - `adata`: input AnnData object in `.h5ad` format
+| Field | Type | Description |
+|---|---|---|
+| `id` | String | Item id; default output prefix |
+| `adata` | Path | Base AnnData object (`.h5ad` or `.zarr`), staged under `input/`; supplies the barcodes |
+| `embedding` | Path? | Step output holding `obsm/<embedding_key>` (default: the base object) |
+| `embedding_key` | String? | obsm key of the embedding (default `X_pca`) |
+| `output_prefix` | String? | Output prefix (default `id`) |
 
-### Outputs
+The step output must hold the same cells as the base object, in the same order.
 
-- `h5ad`: `tuple val(meta), path("*.h5ad")` (metacell AnnData object; typically includes `seacell_metacells.h5ad`)
-- `csv`: `tuple val(meta), path("*.csv")` (assignment tables; hard/soft assignments)
-- `npy`: `tuple val(meta), path("*.npy")` (assignment weights)
-- `pdf`: `tuple val(meta), path("*.pdf")` (diagnostic/QC plots)
-- `pkl`: `tuple val(meta), path("*.pkl")` (pickled SEACells model)
-- `versions`: `path("versions.yml")` (tool/package versions captured at runtime)
+## Output record
 
-### Parameters
+`record(id, membership, summary)`:
 
-This module supports passing arguments to `seacells_aggregate.py` via `task.ext.args`.
+- `<prefix>.membership.csv` — `barcode,metacell`, one row per cell; an empty `metacell` means unassigned.
+- `<prefix>.seacells.json` — `converged`, `n_cells`, `n_metacells`, `requested_metacells`, `metacell_size`
+  (min/median/max), `rss`, `embedding_key`, `backend`, `gpu`, `jitter`, `seed`, `max_iter` and tool versions.
 
-When running the module directly with `nextflow module run`, you set these at the command line using Nextflow “process options”:
+## Options
 
-- `-process.ext.args='<SEACELLS_ARGS>'` (i.e. `-process.ext.args=<SEACELLS_ARGS>`)
-- `-process.ext.prefix='<SAMPLE_PREFIX>'` (i.e. `-process.ext.prefix=<SAMPLE_PREFIX>`, optional; defaults to `${meta.id}`)
+- `ext.args`: one of `--n-metacells <int>` or `--gamma <int>` (cells per metacell) is **required**. Also
+  `--n-waypoint-eigs` (default 10), `--n-neighbors` (default 15),
+  `--convergence-epsilon` (default 1e-5), `--min-iter` (10), `--max-iter` (50), `--use-sparse` and
+  `--seed` (default 0).
+- `--use-sparse` selects the legacy sparse CPU backend; SEACells refuses to combine it with the unified model, so
+  it cannot be given together with an accelerator.
+- GPU: give the task an accelerator (`accelerator = 1`; on LSF also request the GPU, e.g. with clusterOptions).
+  The GPU path needs an A100 or H100 (CUDA 12). A cuSPARSE failure falls back to the CPU once.
 
-Defaults are:
+## Behaviour worth knowing
 
-`--type gex --n_top_genes 2000 --n_components 50 --convergence_epsilon 0.00001 --min_iter 10 --max_iter 50`
+- **Exact ties are jittered.** Cells with identical embedding coordinates give zero neighbour distances, which
+  sparse matrices do not store; SEACells then builds a zero kernel bandwidth and collapses into one metacell, and
+  Palantir indexes past the end of a row. A deterministic jitter is applied only when a preflight graph shows too
+  few positive distances, and its scale is recorded in the summary.
+- **Non-convergence is reported, not raised.** SEACells sets the labels and only then complains, so the partition
+  is usable; `converged: false` in the summary is the signal. With a seed a retry reproduces the same partition,
+  so retrying non-convergence cannot help — raise `--max-iter` instead.
+- **Randomness is global.** SEACells draws from `np.random`, so `--seed` fixes a run on one backend. CPU and GPU
+  give different but equally good partitions at scale: compare RSS, purity and metacell sizes, not ARI.
 
-The output/sample prefix can be controlled via `task.ext.prefix` (defaults to `${meta.id}`).
-
-#### SEACells arguments
-
-These are the supported arguments you can include in `ext.args`:
-
-- `--type` (required): input data modality. Choices: `gex` or `atac`.
-- `--n_metacells` (optional): explicit number of metacells to infer.
-- `--gamma` (optional): sets metacell count adaptively as $n_{metacells} = \mathrm{round}(n_{cells} / \gamma)$. Mutually exclusive with `--n_metacells`.
-- `--n_top_genes` (optional, default `2000`): number of highly-variable genes to select (GEX preprocessing).
-- `--n_components` (optional, default `50`): number of components used for PCA (GEX) or LSI (ATAC).
-- `--convergence_epsilon` (optional, default `1e-5`): convergence threshold for optimization.
-- `--min_iter` (optional, default `10`): minimum iterations for the SEACells fitting step.
-- `--max_iter` (optional, default `50`): maximum iterations for the SEACells fitting step.
-- `--n_waypoint_eigs` (optional, default `10`): number of waypoint eigenvectors used during initialization.
-- `--use_sparse` (flag): use sparse matrix operations (if supported by the input representation).
-- `--precomputed` (optional): key in `adata.obsm` containing a precomputed embedding to use instead of running PCA/LSI.
-- `--celltype_label` (optional): obs column name used to compute cell type purity (QC plot).
-- `--delimiter` (optional): append sample suffix to barcodes using this delimiter.
-
-Notes:
-
-- `--adata`, `--sample`, and `--output_dir` are handled by the module wrapper and do not need to be provided in `ext.args`.
-- You must provide exactly one of `--n_metacells` or `--gamma`.
-
-#### Full `nextflow module run` example
-
-```bash
-/software/cellgen/cellgeni/nextflow/26.04.0/nextflow module run cellgeni/seacells \
-  --meta.id pbmc_10k \
-  --adata /path/to/pbmc10k.h5ad \
-  -process.ext.prefix=pbmc_10k \
-  -process.ext.args='--type gex --gamma 75 --n_top_genes 2000 --n_components 50 --convergence_epsilon 0.00001 --min_iter 10 --max_iter 50'
-```
-
-## Dependencies
-
-This module runs inside the container `quay.io/cellgeni/seacells:latest`.
-
-## Citation
-
-Persad S, Choo Z-N, Dien C, et al. *SEACells: Inference of transcriptional and epigenomic cellular states from single-cell genomics data*. bioRxiv (2022). https://doi.org/10.1101/2022.04.02.486748
-
-## License
-
-MIT
+Containers: `quay.io/cellgeni/seacells:a1173c8-cpu`, `quay.io/cellgeni/seacells:a1173c8-gpu`. Versions are emitted
+on the `versions` topic.

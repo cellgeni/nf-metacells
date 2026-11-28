@@ -1,0 +1,70 @@
+nextflow_process {
+
+    name "Test Process SEACELLS"
+    script "../main.nf"
+    process "SEACELLS"
+
+    tag "modules"
+    tag "seacells"
+
+    test("metacells from a PCA step output") {
+        config "./seacells.config"
+        setup {
+            run("SCANPY_PCA") {
+                script "../../scanpy/pca/main.nf"
+                process {
+                    """
+                    input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                      matrix: null, mask: null, output_prefix: null)
+                    """
+                }
+            }
+        }
+        when {
+            process {
+                """
+                input[0] = SCANPY_PCA.out.map { r ->
+                    record(id: r.id, adata: file("${projectDir}/tests/data/rna.h5ad"), embedding: r.pca,
+                           embedding_key: 'X_pca', output_prefix: null)
+                }
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            def rows = file(out.membership).readLines()
+            def summary = new groovy.json.JsonSlurper().parse(file(out.summary))
+            assertAll(
+                { assert process.success },
+                { assert file(out.membership).name == 'S1.rna.membership.csv' },
+                { assert rows[0] == 'barcode,metacell' },
+                // one row per cell, every cell assigned
+                { assert rows.size() == 401 },
+                { assert rows.tail().every { line -> line.tokenize(',').size() == 2 } },
+                { assert summary.requested_metacells == 20 },
+                { assert summary.n_metacells > 1 && summary.n_metacells <= 20 },
+                { assert summary.n_cells == 400 },
+                { assert summary.backend == 'unified' && !summary.gpu },
+                { assert summary.converged in [true, false] },
+                { assert summary.versions.SEACells }
+            )
+        }
+    }
+
+    test("stub") {
+        options "-stub"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  embedding: null, embedding_key: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].membership).name == 'S1.rna.membership.csv'
+            assert file(process.out[0][0].summary).name == 'S1.rna.seacells.json'
+        }
+    }
+}

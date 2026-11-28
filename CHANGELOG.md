@@ -57,6 +57,13 @@ the renamed parameters.
 - The membership assay's embedding is computed by the representation modules, one step per task, and SEACells and
   hmetacells read it (`--precomputed`) instead of preprocessing internally; on the test data hmetacells gives the
   same metacells as 0.1.0.
+- `cellgeni/seacells` 2.0.0 takes the embedding step output and writes a membership table
+  (`<id>.membership.csv`, `barcode,metacell`) and a JSON summary (convergence, RSS, metacell sizes, backend,
+  jitter, seed, versions). It is seeded through `np.random`, jitters exact ties in the embedding so the kNN graph
+  cannot collapse, runs the unified model on a GPU when the task has an accelerator (`--gpu_steps seacells`),
+  falls back to the CPU once on a cuSPARSE failure, and reports non-convergence in the summary instead of
+  failing — with a seed a retry would only repeat it. hmetacells still reads the embedding from the assembled
+  object until its own 2.0 module lands.
 - Outputs go to `<outdir>/<sample>/<method>/` (Nextflow output block, copied by default; `--publish_mode`), run
   reports to `<outdir>/pipeline_info/`.
 - Typed Nextflow (records, typed parameters, strict configuration); requires Nextflow 26.10.6 or later.
@@ -67,6 +74,8 @@ the renamed parameters.
 - `--filelist`, `--type`, `--raw`, `--celltype_label`, `--delimiter` and the nested `--seacells.*` and
   `--hierarchial.*` parameters.
 - `bin/convert_to_h5ad.py`, `bin/attach_annotation.py`, `modules/utils` and `configs/` (now `conf/`).
+- SEACells no longer writes the metacell `.h5ad`, soft assignments, weights, the model pickle or QC plots:
+  aggregation and evaluation become their own steps, and the membership table is the method's only contract.
 
 ## [0.1.0] - 2026-11-26
 

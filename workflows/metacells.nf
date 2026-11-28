@@ -13,9 +13,10 @@ include { Sample; AssayState; StepOutput; Embedding; Membership; MethodFiles } f
  * --membership_assay when the sample has it, otherwise its only assay) unless --embedding_key names one in the
  * object, then run each selected method on that embedding: PCA for RNA, LSI or spectral (--atac_embedding) for ATAC.
  *
- * Until phase 5 (docs/architecture.md), SEACells and hmetacells are the v1 modules: they read the embedding from
- * obsm of the object they aggregate (--precomputed), so the step output is assembled with the base object first.
- * They see only the membership assay and write their own table formats.
+ * SEACells is the 2.0 module: the embedding step output goes in, a `barcode,metacell` table comes out. hmetacells
+ * is still the v1 module until the rest of phase 5 (docs/architecture.md): it reads the embedding from obsm of the
+ * object it aggregates (--precomputed), so the step output is assembled with the base object first. Both see only
+ * the membership assay.
  */
 workflow METACELLS {
     take:
@@ -52,18 +53,36 @@ workflow METACELLS {
             basis.filter { _st -> embedding_key }
                 .map { st -> record(id: st.id, sample: st.sample, assay: st.assay, key: embedding_key, adata: st.adata) }
         )
-    v1_input = embeddings.map { e -> tuple([id: e.sample, assay: e.assay, embedding_key: e.key], e.adata) }
+    // SEACells 2.0 reads the embedding straight from the step output, so it does not wait for the assembled copy
+    method_input = computed
+        .map { st -> record(id: st.id, sample: st.sample, assay: st.assay, key: "X_${st.step}",
+                            adata: st.adata, embedding: st.output) }
+        .mix(
+            basis.filter { _st -> embedding_key }
+                .map { st -> record(id: st.id, sample: st.sample, assay: st.assay, key: embedding_key,
+                                    adata: st.adata, embedding: null) }
+        )
 
-    seacells = SEACELLS(v1_input.filter { _st -> 'seacells' in methods })
+    seacells_in = method_input.filter { _st -> 'seacells' in methods }
+    seacells = seacells_in.join(
+        SEACELLS(
+            seacells_in.map { e -> record(id: e.id, adata: e.adata, embedding: e.embedding,
+                                          embedding_key: e.key, output_prefix: null) }
+        ),
+        by: 'id'
+    )
+
+    // v1 hmetacells still reads the embedding from obsm of the assembled object (--precomputed)
+    v1_input = embeddings.map { e -> tuple([id: e.sample, assay: e.assay, embedding_key: e.key], e.adata) }
     hmetacells = HMETACELLS(v1_input.filter { _st -> 'hmetacells' in methods })
 
-    memberships = seacells.csv
-        .map { meta, tables -> membership(meta, 'seacells', asList(tables).find { f -> isSeacellsHard(f) } ?: asList(tables)[0]) }
+    memberships = seacells
+        .map { r -> record(id: "${r.id}.seacells", sample: r.sample, assay: r.assay, method: 'seacells',
+                           membership: r.membership) }
         .mix(hmetacells.csv.map { meta, table -> membership(meta, 'hmetacells', table) })
 
-    extras = seacells.h5ad.mix(seacells.csv).mix(seacells.npy).mix(seacells.pdf).mix(seacells.pkl)
-        .map { meta, files -> methodFiles(meta, 'seacells', asList(files).findAll { f -> !isSeacellsHard(f) }) }
-        .filter { r -> r.files }
+    extras = seacells.map { r -> record(id: "${r.id}.seacells.summary", sample: r.sample, method: 'seacells',
+                                        files: [r.summary]) }
 
     emit:
     states: Channel<AssayState> = ingest.states
@@ -72,11 +91,6 @@ workflow METACELLS {
     embeddings: Channel<Embedding> = embeddings
     memberships: Channel<Membership> = memberships
     extras: Channel<MethodFiles> = extras
-}
-
-// The v1 SEACells hard assignments serve as its membership table (a stub run writes one table of another name)
-def isSeacellsHard(file: Path) -> Boolean {
-    return file.name == 'seacell_metacell_assignments.csv'
 }
 
 def basisAssay(s: Sample, preferred: String) -> String {
@@ -88,13 +102,4 @@ def basisAssay(s: Sample, preferred: String) -> String {
 
 def membership(meta: Map, method: String, table: Path) -> Membership {
     return record(id: "${meta.id}.${meta.assay}.${method}", sample: meta.id, assay: meta.assay, method: method, membership: table)
-}
-
-def methodFiles(meta: Map, method: String, files: List<Path>) -> MethodFiles {
-    return record(id: "${meta.id}.${meta.assay}.${method}.${files ? files[0].name : 'none'}", sample: meta.id, method: method, files: files)
-}
-
-// A legacy path output is a single path when its glob matches one file and a list otherwise
-def asList(files) -> List<Path> {
-    return files instanceof List ? files : [files]
 }
