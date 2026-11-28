@@ -62,8 +62,15 @@ the renamed parameters.
   jitter, seed, versions). It is seeded through `np.random`, jitters exact ties in the embedding so the kNN graph
   cannot collapse, runs the unified model on a GPU when the task has an accelerator (`--gpu_steps seacells`),
   falls back to the CPU once on a cuSPARSE failure, and reports non-convergence in the summary instead of
-  failing — with a seed a retry would only repeat it. hmetacells still reads the embedding from the assembled
-  object until its own 2.0 module lands.
+  failing — with a seed a retry would only repeat it.
+- `cellgeni/hmetacells` 2.0.0 takes the same embedding step output and writes the same pair of files. Within each
+  group of `--constrain_by` it cuts a kNN graph of the embedding with a scikit-network hierarchy into balanced
+  metacells of at most `--hmetacells_n_max` cells; the graph is built with rapids-singlecell when the task has an
+  accelerator (`--gpu_steps hmetacells`). Metacells below `--hmetacells_n_min` are counted in the summary rather
+  than merged away, cells whose group is missing are left unassigned, and the neighbourhood shrinks to fit a
+  group smaller than it.
+- Both methods now read the embedding step output directly, so no full copy of the object is assembled between
+  the representation steps and the methods.
 - Outputs go to `<outdir>/<sample>/<method>/` (Nextflow output block, copied by default; `--publish_mode`), run
   reports to `<outdir>/pipeline_info/`.
 - Typed Nextflow (records, typed parameters, strict configuration); requires Nextflow 26.10.6 or later.
@@ -76,6 +83,8 @@ the renamed parameters.
 - `bin/convert_to_h5ad.py`, `bin/attach_annotation.py`, `modules/utils` and `configs/` (now `conf/`).
 - SEACells no longer writes the metacell `.h5ad`, soft assignments, weights, the model pickle or QC plots:
   aggregation and evaluation become their own steps, and the membership table is the method's only contract.
+- The assemble bridge: `anndata/assemble` no longer runs between the representation steps and the methods. It
+  returns later in the redesign as the final object, with membership columns.
 
 ## [0.1.0] - 2026-11-26
 

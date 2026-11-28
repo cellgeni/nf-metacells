@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """SEACells metacells from a precomputed embedding: `<prefix>.membership.csv` (barcode,metacell).
 
-Reads obsm/<--embedding-key> through scio (a raw step output, a slim object, or the base object itself), fits the
-SEACells archetypal model and writes the hard assignments. The unified model (SEACells a1173c8) runs on CPU and,
-with --gpu, on the device; --use-sparse asks for the legacy sparse CPU backend instead, which SEACells refuses to
-combine with the unified one. Non-convergence is flagged in `<prefix>.seacells.json`, never raised: SEACells sets
-the labels before it complains, and with a seed a rerun reproduces the same partition, so a retry cannot help. A
-cuSPARSE failure on the GPU falls back to the CPU once. Randomness comes from the global `np.random`, so --seed
-fixes a run on one backend; CPU and GPU give different but equally good partitions at scale, which is why parity
-is judged on RSS, purity and metacell sizes rather than ARI.
+Reads the embedding (--embedding-key) through scio, from a raw step output, a slim object or the base object
+itself, fits the SEACells archetypal model and writes the hard assignments. The unified model (SEACells a1173c8)
+runs on CPU and, with --gpu, on the device; --use-sparse asks for the legacy sparse CPU backend instead, which
+SEACells refuses to combine with the unified one. Non-convergence is flagged in `<prefix>.seacells.json`, never
+raised: SEACells sets the labels before it complains, and with a seed a rerun reproduces the same partition, so a
+retry cannot help. A cuSPARSE failure on the GPU falls back to the CPU once. Randomness comes from the global
+`np.random`, so --seed fixes a run on one backend; CPU and GPU give different but equally good partitions at
+scale, which is why parity is judged on RSS, purity and metacell sizes rather than ARI.
 """
 
 import argparse
@@ -122,7 +122,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--adata", required=True, help="base AnnData object (.h5ad or .zarr)")
     parser.add_argument("--prefix", required=True, help="output name prefix, usually the record id")
     parser.add_argument("--embedding", help="step output holding the embedding (default: the base object)")
-    parser.add_argument("--embedding-key", default="X_pca", help="obsm key of the embedding")
+    parser.add_argument("--embedding-key", default="obsm/X_pca", help="element key of the embedding")
     parser.add_argument("--gpu", action="store_true", help="fit on the GPU (unified model)")
     size = parser.add_mutually_exclusive_group(required=True)
     size.add_argument("--n-metacells", type=int, help="number of metacells")
@@ -143,25 +143,25 @@ def main(argv: list[str] | None = None) -> int:
 
     reader = scio.Reader(args.adata, [args.embedding])
     key = args.embedding_key
-    embedding = np.asarray(reader.read(f"obsm/{key}"))
+    embedding = np.asarray(reader.read(key))
     np.random.seed(args.seed)
     embedding, jitter = jitter_exact_ties(embedding, args.n_neighbors, seed=args.seed)
     n_metacells = metacell_count(len(reader.obs_names), args.n_metacells, args.gamma)
 
     adata = ad.AnnData(obs=pd.DataFrame(index=pd.Index(reader.obs_names, dtype=str)))
-    adata.obsm[key] = embedding
+    adata.obsm["X_rep"] = embedding
     if args.gpu:
         scio.gpu_init()
     used_gpu = args.gpu
     try:
-        model, converged = build_model(adata, key, n_metacells, args, used_gpu)
+        model, converged = build_model(adata, "X_rep", n_metacells, args, used_gpu)
     except Exception as failed:  # noqa: BLE001 - the message is the only handle cuSPARSE gives us
         if not (args.gpu and any(marker in str(failed) for marker in CUSPARSE_MARKERS)):
             raise
         scio.log.warning("cuSPARSE failed (%s); falling back to the CPU", failed)
         used_gpu = False
         np.random.seed(args.seed)
-        model, converged = build_model(adata, key, n_metacells, args, use_gpu=False)
+        model, converged = build_model(adata, "X_rep", n_metacells, args, use_gpu=False)
 
     labels = model.get_hard_assignments()
     membership = pd.DataFrame({"barcode": reader.obs_names, "metacell": labels["SEACell"].to_numpy()})

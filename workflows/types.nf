@@ -30,13 +30,15 @@ record StepOutput {
     output: Path
 }
 
-// The embedding the methods of a sample run on; id = <sample>.<assay>. `adata` holds obsm[key] and the counts.
+// The embedding the methods of a sample run on; id = <sample>.<assay>. `key` is a full element key
+// (obsm/X_pca). It lives in `embedding`, the step output, or in `adata` itself when the samplesheet supplied it.
 record Embedding {
     id: String
     sample: String
     assay: String
     key: String
     adata: Path
+    embedding: Path?
 }
 
 // One method run on one sample; id = <sample>.<assay>.<method>. `assay` is the assay that drove membership.

@@ -4,8 +4,8 @@ nextflow.enable.types = true
  * SEACells metacells from a precomputed embedding: `<prefix>.membership.csv` (barcode,metacell) and
  * `<prefix>.seacells.json` (convergence, RSS, metacell sizes, versions). The unified SEACells model runs on CPU
  * and, when the task has an accelerator, on the device; ext.args `--use-sparse` asks for the legacy sparse CPU
- * backend instead. One of `--n-metacells <int>` or `--gamma <int>` is required (ext.args); the obsm key comes
- * from the record. Other ext.args: --n-waypoint-eigs, --n-neighbors, --convergence-epsilon, --min-iter,
+ * backend instead. One of `--n-metacells <int>` or `--gamma <int>` is required (ext.args); the element key of the
+ * embedding comes from the record. Other ext.args: --n-waypoint-eigs, --n-neighbors, --convergence-epsilon, --min-iter,
  * --max-iter, --use-sparse, --seed.
  * Non-convergence is reported in the JSON rather than raised: the labels are set before SEACells complains, and
  * with a seed a retry reproduces the same partition.

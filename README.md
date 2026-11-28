@@ -47,7 +47,7 @@ Paths may be absolute or relative to the launch directory.
 | `--membership_assay` | `rna` | Assay that drives membership in samples with both RNA and ATAC |
 | `--metacell_size` | `75` | Target cells per metacell (SEACells); `--seacells_n_metacells` sets the number instead |
 | `--constrain_by` | – | obs column to build metacells within (required by `hmetacells`) |
-| `--eval_labels` | – | obs column used to report metacell purity (SEACells) |
+| `--eval_labels` | – | obs column for metacell purity. Read by the evaluation step, which is not wired yet, so it currently has no effect |
 | `--embedding_key` | – | obsm key of an existing embedding to use instead of computing one |
 | `--atac_embedding` | `lsi` | ATAC embedding: `lsi` (TF-IDF + LSI, as muon) or `spectral` (snapATAC2) |
 | `--hvg_n_top_genes`, `--pca_n_comps`, `--lsi_n_comps`, `--spectral_n_comps` | 2000, 50, 50, 30 | Embedding sizes |
@@ -79,9 +79,9 @@ results/
 │   ├── ingest/<sample>.<assay>.h5ad    AnnData the pipeline wrote (converted from 10x and/or with metadata attached)
 │   ├── <assay>/<sample>.<assay>.<step>.raw   representation steps (normalizetotal, log1p, hvg, pca, tfidf, lsi,
 │   │                                   selectfeatures, spectral): one file per element and manifest.json
-│   ├── seacells/                       membership (seacell_metacell_assignments.csv), soft assignments,
-│   │                                   metacell AnnData, model, plots
-│   └── hmetacells/                     membership (hierarchial_metacells.csv)
+│   ├── seacells/                       <sample>.<assay>.membership.csv (barcode,metacell) and
+│   │                                   <sample>.<assay>.seacells.json (convergence, RSS, metacell sizes)
+│   └── hmetacells/                     <sample>.<assay>.membership.csv and <sample>.<assay>.hmetacells.json
 ├── memberships.csv                     one row per sample and method, with the membership table's path
 ├── ingested.csv                        one row per AnnData written under ingest/
 ├── representations.csv                 one row per representation step output

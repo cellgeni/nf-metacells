@@ -8,7 +8,7 @@ nextflow.enable.types = true
 include { SEACELLS } from 'cellgeni/seacells'
 
 SEACELLS(channel.of(record(id: 'S1.rna', adata: file('S1_rna.h5ad'), embedding: file('S1.pca.raw'),
-                           embedding_key: 'X_pca', output_prefix: null)))
+                           embedding_key: 'obsm/X_pca', output_prefix: null)))
 ```
 
 ## Input record
@@ -17,8 +17,8 @@ SEACELLS(channel.of(record(id: 'S1.rna', adata: file('S1_rna.h5ad'), embedding: 
 |---|---|---|
 | `id` | String | Item id; default output prefix |
 | `adata` | Path | Base AnnData object (`.h5ad` or `.zarr`), staged under `input/`; supplies the barcodes |
-| `embedding` | Path? | Step output holding `obsm/<embedding_key>` (default: the base object) |
-| `embedding_key` | String? | obsm key of the embedding (default `X_pca`) |
+| `embedding` | Path? | Step output holding the embedding (default: the base object) |
+| `embedding_key` | String? | Element key of the embedding (default `obsm/X_pca`) |
 | `output_prefix` | String? | Output prefix (default `id`) |
 
 The step output must hold the same cells as the base object, in the same order.

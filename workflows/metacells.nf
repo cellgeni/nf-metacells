@@ -3,7 +3,6 @@ nextflow.enable.types = true
 include { INGEST } from '../subworkflows/local/ingest'
 include { REPRESENT_RNA } from '../subworkflows/local/represent_rna'
 include { REPRESENT_ATAC } from '../subworkflows/local/represent_atac'
-include { ANNDATA_ASSEMBLE } from '../modules/cellgeni/anndata/assemble'
 include { SEACELLS } from '../modules/cellgeni/seacells'
 include { HMETACELLS } from '../modules/cellgeni/hmetacells'
 include { Sample; AssayState; StepOutput; Embedding; Membership; MethodFiles } from './types'
@@ -13,10 +12,9 @@ include { Sample; AssayState; StepOutput; Embedding; Membership; MethodFiles } f
  * --membership_assay when the sample has it, otherwise its only assay) unless --embedding_key names one in the
  * object, then run each selected method on that embedding: PCA for RNA, LSI or spectral (--atac_embedding) for ATAC.
  *
- * SEACells is the 2.0 module: the embedding step output goes in, a `barcode,metacell` table comes out. hmetacells
- * is still the v1 module until the rest of phase 5 (docs/architecture.md): it reads the embedding from obsm of the
- * object it aggregates (--precomputed), so the step output is assembled with the base object first. Both see only
- * the membership assay.
+ * Both methods are 2.0 modules: the embedding step output goes in and a `barcode,metacell` table comes out,
+ * beside a JSON summary. They see only the membership assay; aggregation over the sample's other assays is the
+ * next step of phase 5 (docs/architecture.md).
  */
 workflow METACELLS {
     take:
@@ -44,26 +42,17 @@ workflow METACELLS {
             .map { o -> record(id: "${o.sample}.${o.assay}", step: o.step, output: o.output) },
         by: 'id'
     )
-    assembled = ANNDATA_ASSEMBLE(
-        computed.map { st -> record(id: st.id, adata: st.adata, sources: [st.output], output_prefix: null) }
-    )
-    embeddings = computed.join(assembled, by: 'id')
-        .map { st -> record(id: st.id, sample: st.sample, assay: st.assay, key: "X_${st.step}", adata: st.assembled) }
-        .mix(
-            basis.filter { _st -> embedding_key }
-                .map { st -> record(id: st.id, sample: st.sample, assay: st.assay, key: embedding_key, adata: st.adata) }
-        )
-    // SEACells 2.0 reads the embedding straight from the step output, so it does not wait for the assembled copy
-    method_input = computed
-        .map { st -> record(id: st.id, sample: st.sample, assay: st.assay, key: "X_${st.step}",
+    // Both methods read the embedding straight from the step output: no assembled copy stands between them
+    embeddings = computed
+        .map { st -> record(id: st.id, sample: st.sample, assay: st.assay, key: "obsm/X_${st.step}",
                             adata: st.adata, embedding: st.output) }
         .mix(
             basis.filter { _st -> embedding_key }
-                .map { st -> record(id: st.id, sample: st.sample, assay: st.assay, key: embedding_key,
+                .map { st -> record(id: st.id, sample: st.sample, assay: st.assay, key: "obsm/${embedding_key}",
                                     adata: st.adata, embedding: null) }
         )
 
-    seacells_in = method_input.filter { _st -> 'seacells' in methods }
+    seacells_in = embeddings.filter { _e -> 'seacells' in methods }
     seacells = seacells_in.join(
         SEACELLS(
             seacells_in.map { e -> record(id: e.id, adata: e.adata, embedding: e.embedding,
@@ -72,17 +61,30 @@ workflow METACELLS {
         by: 'id'
     )
 
-    // v1 hmetacells still reads the embedding from obsm of the assembled object (--precomputed)
-    v1_input = embeddings.map { e -> tuple([id: e.sample, assay: e.assay, embedding_key: e.key], e.adata) }
-    hmetacells = HMETACELLS(v1_input.filter { _st -> 'hmetacells' in methods })
+    hmetacells_in = embeddings.filter { _e -> 'hmetacells' in methods }
+    hmetacells = hmetacells_in.join(
+        HMETACELLS(
+            hmetacells_in.map { e -> record(id: e.id, adata: e.adata, embedding: e.embedding,
+                                            embedding_key: e.key, output_prefix: null) }
+        ),
+        by: 'id'
+    )
 
     memberships = seacells
         .map { r -> record(id: "${r.id}.seacells", sample: r.sample, assay: r.assay, method: 'seacells',
                            membership: r.membership) }
-        .mix(hmetacells.csv.map { meta, table -> membership(meta, 'hmetacells', table) })
+        .mix(
+            hmetacells.map { r -> record(id: "${r.id}.hmetacells", sample: r.sample, assay: r.assay,
+                                         method: 'hmetacells', membership: r.membership) }
+        )
 
-    extras = seacells.map { r -> record(id: "${r.id}.seacells.summary", sample: r.sample, method: 'seacells',
-                                        files: [r.summary]) }
+    extras = seacells
+        .map { r -> record(id: "${r.id}.seacells.summary", sample: r.sample, method: 'seacells',
+                           files: [r.summary]) }
+        .mix(
+            hmetacells.map { r -> record(id: "${r.id}.hmetacells.summary", sample: r.sample, method: 'hmetacells',
+                                         files: [r.summary]) }
+        )
 
     emit:
     states: Channel<AssayState> = ingest.states
@@ -100,6 +102,3 @@ def basisAssay(s: Sample, preferred: String) -> String {
     return s.rna ? 'rna' : 'atac'
 }
 
-def membership(meta: Map, method: String, table: Path) -> Membership {
-    return record(id: "${meta.id}.${meta.assay}.${method}", sample: meta.id, assay: meta.assay, method: method, membership: table)
-}

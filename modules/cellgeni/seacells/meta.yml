@@ -38,10 +38,10 @@ input:
       pattern: "*.{h5ad,zarr}"
     - name: embedding
       type: file
-      description: "Optional step output holding obsm/<embedding_key> (default: the base object)."
+      description: "Optional step output holding the embedding (default: the base object)."
     - name: embedding_key
       type: string
-      description: "Optional obsm key of the embedding (default: X_pca)."
+      description: "Optional element key of the embedding (default: obsm/X_pca)."
     - name: output_prefix
       type: string
       description: Optional output prefix (default id).

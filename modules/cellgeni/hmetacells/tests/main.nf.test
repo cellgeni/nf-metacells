@@ -1,0 +1,72 @@
+nextflow_process {
+
+    name "Test Process HMETACELLS"
+    script "../main.nf"
+    process "HMETACELLS"
+
+    tag "modules"
+    tag "hmetacells"
+
+    test("metacells within celltype groups from a PCA step output") {
+        config "./hmetacells.config"
+        setup {
+            run("SCANPY_PCA") {
+                script "../../scanpy/pca/main.nf"
+                process {
+                    """
+                    input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                      matrix: null, mask: null, output_prefix: null)
+                    """
+                }
+            }
+        }
+        when {
+            process {
+                """
+                input[0] = SCANPY_PCA.out.map { r ->
+                    record(id: r.id, adata: file("${projectDir}/tests/data/rna.h5ad"), embedding: r.pca,
+                           embedding_key: 'obsm/X_pca', output_prefix: null)
+                }
+                """
+            }
+        }
+        then {
+            def out = process.out[0][0]
+            def rows = file(out.membership).readLines()
+            def summary = new groovy.json.JsonSlurper().parse(file(out.summary))
+            def groups = rows.tail().collect { line -> line.tokenize(',')[1].split('_')[0] }.toSet()
+            assertAll(
+                { assert process.success },
+                { assert file(out.membership).name == 'S1.rna.membership.csv' },
+                { assert rows[0] == 'barcode,metacell' },
+                { assert rows.size() == 401 },
+                // every cell assigned, inside its own celltype
+                { assert summary.unassigned == 0 },
+                { assert groups == ['B', 'DC', 'Mono', 'NK', 'T'].toSet() },
+                { assert summary.n_groups == 5 },
+                // the balanced cut bounds metacells above, never beyond n_max
+                { assert summary.metacell_size.max <= 30 },
+                { assert summary.n_metacells > 5 },
+                { assert summary.hierarchy == 'louvain' && !summary.gpu },
+                { assert summary.versions['scikit-network'] }
+            )
+        }
+    }
+
+    test("stub") {
+        options "-stub"
+        when {
+            process {
+                """
+                input[0] = record(id: 'S1.rna', adata: file("${projectDir}/tests/data/rna.h5ad", checkIfExists: true),
+                                  embedding: null, embedding_key: null, output_prefix: null)
+                """
+            }
+        }
+        then {
+            assert process.success
+            assert file(process.out[0][0].membership).name == 'S1.rna.membership.csv'
+            assert file(process.out[0][0].summary).name == 'S1.rna.hmetacells.json'
+        }
+    }
+}
